@@ -1,0 +1,6 @@
+{
+  "name": "Take Care - Clinical Health OS & Medical Document OCR",
+  "description": "Complete medical document scanning, image preprocessing, clinical OCR extraction, visual verification, and consent-governed doctor exchange.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

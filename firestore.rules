@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Patient User Profile
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+
+      // Patient Medical Documents
+      match /documents/{documentId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(documentId) && request.resource.data.userId == userId;
+        allow update: if isOwner(userId) && request.resource.data.userId == userId;
+        allow delete: if isOwner(userId);
+      }
+
+      // Patient Consolidated Health Summaries
+      match /summaries/{summaryId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(summaryId) && request.resource.data.userId == userId;
+        allow update: if isOwner(userId) && request.resource.data.userId == userId;
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Temporary Doctor Sharing Sessions
+    match /sharing_sessions/{code} {
+      // Patients can manage their own sessions; doctors can read active sessions
+      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) ||
+                    (resource.data.status == 'active' && resource.data.expiresAt > request.time.toMillis());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if (isSignedIn() && resource.data.userId == request.auth.uid) ||
+                    (resource.data.status == 'active' && request.resource.data.status in ['accessed', 'expired']);
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

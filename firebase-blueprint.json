@@ -1,0 +1,211 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile containing personal and health demographic details.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user ID matching request auth UID"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Patient's full legal name",
+          "maxLength": 100
+        },
+        "mobile": {
+          "type": "string",
+          "description": "Patient contact phone number",
+          "maxLength": 20
+        },
+        "email": {
+          "type": "string",
+          "description": "Patient email address",
+          "maxLength": 100
+        },
+        "dob": {
+          "type": "string",
+          "description": "Date of birth in YYYY-MM-DD format",
+          "maxLength": 20
+        },
+        "gender": {
+          "type": "string",
+          "description": "Patient gender identity",
+          "maxLength": 20
+        },
+        "bloodGroup": {
+          "type": "string",
+          "description": "Patient blood group ABO/Rh",
+          "maxLength": 10
+        },
+        "emergencyContactName": {
+          "type": "string",
+          "description": "Primary emergency contact person name",
+          "maxLength": 100
+        },
+        "emergencyContactPhone": {
+          "type": "string",
+          "description": "Emergency contact phone number",
+          "maxLength": 20
+        },
+        "preferredLanguage": {
+          "type": "string",
+          "description": "Preferred communication language",
+          "maxLength": 50
+        },
+        "isComplete": {
+          "type": "boolean",
+          "description": "Whether minimum profile requirements are fulfilled"
+        },
+        "isMobileVerified": {
+          "type": "boolean",
+          "description": "Verification status of user's mobile number"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp string of profile last update"
+        }
+      },
+      "required": ["id", "fullName", "mobile"]
+    },
+    "MedicalDocument": {
+      "title": "MedicalDocument",
+      "description": "Processed medical record with clinical entities extracted and verified.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Document unique identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID"
+        },
+        "filename": {
+          "type": "string",
+          "description": "Original file name",
+          "maxLength": 255
+        },
+        "fileType": {
+          "type": "string",
+          "description": "MIME or extension type (pdf, jpg, png)",
+          "maxLength": 10
+        },
+        "category": {
+          "type": "string",
+          "description": "Document category such as Prescription, Lab Report, or Discharge Summary",
+          "maxLength": 50
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Upload ISO timestamp or date string",
+          "maxLength": 50
+        },
+        "fileSize": {
+          "type": "string",
+          "description": "Formatted file size string",
+          "maxLength": 30
+        },
+        "status": {
+          "type": "string",
+          "description": "Processing status (ready, processing, error)",
+          "maxLength": 30
+        },
+        "ocrConfidence": {
+          "type": "number",
+          "description": "Confidence percentage score for OCR/extraction"
+        },
+        "rawText": {
+          "type": "string",
+          "description": "Extracted text content from the document",
+          "maxLength": 50000
+        }
+      },
+      "required": ["id", "userId", "filename", "fileType", "status"]
+    },
+    "HealthSummary": {
+      "title": "HealthSummary",
+      "description": "Aggregated clinical health summary generated from confirmed records.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Summary identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID"
+        },
+        "generatedAt": {
+          "type": "string",
+          "description": "Timestamp of generation",
+          "maxLength": 50
+        },
+        "documentCount": {
+          "type": "number",
+          "description": "Number of source documents incorporated"
+        },
+        "status": {
+          "type": "string",
+          "description": "Summary status",
+          "maxLength": 20
+        }
+      },
+      "required": ["id", "userId", "generatedAt", "documentCount"]
+    },
+    "SharingSession": {
+      "title": "SharingSession",
+      "description": "Temporary 6-digit access code session for clinician access.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "6-character sharing access code",
+          "maxLength": 10
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of patient sharing records"
+        },
+        "duration": {
+          "type": "string",
+          "description": "Configured session duration (15m, 1h, 24h)",
+          "maxLength": 10
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Unix timestamp in ms when created"
+        },
+        "expiresAt": {
+          "type": "number",
+          "description": "Unix timestamp in ms when access expires"
+        },
+        "status": {
+          "type": "string",
+          "description": "Session status (active, accessed, revoked, expired)",
+          "maxLength": 20
+        }
+      },
+      "required": ["code", "userId", "status", "expiresAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Patient user profile and contact metadata."
+    },
+    "/users/{userId}/documents/{documentId}": {
+      "schema": "MedicalDocument",
+      "description": "Patient medical documents and OCR extraction results."
+    },
+    "/users/{userId}/summaries/{summaryId}": {
+      "schema": "HealthSummary",
+      "description": "Patient verified clinical summary snapshots."
+    },
+    "/sharing_sessions/{code}": {
+      "schema": "SharingSession",
+      "description": "Temporary doctor sharing codes with expiration."
+    }
+  }
+}
