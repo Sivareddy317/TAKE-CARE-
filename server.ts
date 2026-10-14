@@ -1343,7 +1343,7 @@ Return valid JSON adhering to:
 }`;
 
         const ocrResponse = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.8-flash',
           contents: [
             {
               inlineData: {
@@ -1412,7 +1412,7 @@ ${JSON.stringify(linesPromptInput, null, 2)}`;
         attempt++;
         try {
           const extractionResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.8-flash',
             contents: userMessage,
             config: {
               systemInstruction: EXTRACTION_SYSTEM_PROMPT,
@@ -1546,7 +1546,7 @@ ${JSON.stringify(linesPromptInput, null, 2)}`;
       success: true,
       documentId: docId,
       pipelineSteps,
-      extractionMode: ai ? 'gemini-2.5-flash (Part A Contract)' : 'offline-validated',
+      extractionMode: ai ? 'gemini-3.8-flash (Part A Contract)' : 'offline-validated',
       ocrConfidence: Math.round(readability.score * 100),
       readabilityScore: readability.score,
       readabilityLabel: readability.label,
@@ -1577,6 +1577,63 @@ app.get('/api/test/regression-suite', (_req: Request, res: Response) => {
     });
   } catch (err: any) {
     return res.status(500).json({ error: 'Failed to run regression tests: ' + err.message });
+  }
+});
+
+// Ask Ayu Health Assistant Chat Endpoint (Powered by Gemini)
+app.post('/api/chat/ask-ayu', optionalAuthenticateUser, async (req: Request, res: Response) => {
+  try {
+    const { query, patientName, documentsSummary, documentsCount } = req.body;
+
+    if (!query || typeof query !== 'string') {
+      return res.status(400).json({ error: 'Query text is required' });
+    }
+
+    const lowerQuery = query.toLowerCase();
+
+    // Direct check for "Show my medical history" when no docs exist
+    if ((lowerQuery.includes('show my medical history') || lowerQuery.includes('medical history')) && (!documentsCount || documentsCount === 0)) {
+      return res.json({
+        reply: 'There is no diagnosis history documented in your records.',
+        source: 'clinical_records',
+      });
+    }
+
+    if (!ai) {
+      return res.json({
+        reply: `I am Ayusha, your personal health assistant. ${
+          documentsCount && documentsCount > 0
+            ? `You have ${documentsCount} document(s) uploaded. I can help you explain your medicines and lab results.`
+            : 'You currently have no medical records uploaded. Tap "Scan medical documents" on your Home screen to add your first record.'
+        }`,
+      });
+    }
+
+    const contextPrompt = `You are Ayusha, a warm, helpful, and clinically responsible personal health assistant in the Ayu Health mobile app.
+The user is ${patientName || 'the patient'}.
+Their current documented records: ${
+      documentsSummary && documentsSummary.length > 0
+        ? JSON.stringify(documentsSummary)
+        : 'Zero documents uploaded yet.'
+    }
+
+User Question: "${query}"
+
+Guidelines:
+1. If the user asks about their history or records, base your answer strictly on the provided documents. If they have no records or no matching diagnosis, state: "There is no diagnosis history documented in your records."
+2. Provide helpful, easily understandable explanations of medical terms, dosage schedules, or lab tests.
+3. Remind the user that you assist with organizing and understanding records, while definitive clinical diagnoses come from their consulting doctor.
+4. Keep the tone empathetic, concise, and professional.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: contextPrompt,
+    });
+
+    const reply = response.text || 'I am here to help you understand your health records.';
+    return res.json({ reply });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Failed to process assistant query: ' + err.message });
   }
 });
 

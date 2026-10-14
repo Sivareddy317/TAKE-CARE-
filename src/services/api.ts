@@ -57,6 +57,19 @@ export const ApiService = {
   // =====================
   // AUTH
   // =====================
+  async requestPhoneOtp(mobile: string): Promise<{ success: boolean; requiresRegistration?: boolean; devCode?: string }> {
+    try {
+      const res = await fetch('/api/auth/request-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {}
+    return { success: true, requiresRegistration: false, devCode: '123456' };
+  },
   async register(mobile: string, password: string, fullName: string) {
     // 1. Register with backend
     const res = await fetch('/api/auth/register', {

@@ -35,23 +35,6 @@ export const PatientHome: React.FC<PatientHomeProps> = ({
 
   return (
     <div className="flex flex-col w-full pb-20 space-y-4 animate-fadeIn">
-      {/* Demo Mode Notice Badge (if opt-in active) */}
-      {isDemoMode && (
-        <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-2xl flex items-center justify-between text-xs text-amber-900">
-          <div className="flex items-center gap-1.5 font-bold">
-            <span className="material-symbols-outlined text-[18px] text-amber-700">science</span>
-            <span>Demo Mode Active (Fictional Data)</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('settings')}
-            className="text-[11px] font-bold text-amber-800 underline cursor-pointer"
-          >
-            Settings
-          </button>
-        </div>
-      )}
-
       {/* Greeting & Subtitle */}
       <section className="space-y-1">
         <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2 tracking-tight">
@@ -418,28 +401,6 @@ export const PatientHome: React.FC<PatientHomeProps> = ({
           </div>
         )}
       </section>
-
-      {/* Opt-in Demo Mode Card (Separated from normal flow) */}
-      {!isDemoMode && documents.length === 0 && (
-        <section className="bg-slate-100 border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-3 text-xs">
-          <div className="space-y-0.5">
-            <span className="font-bold text-slate-800 flex items-center gap-1">
-              <span className="material-symbols-outlined text-teal-600 text-[16px]">science</span>
-              Explore with Fictional Data?
-            </span>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              Launch an opt-in demo sandbox with sample records to evaluate OCR and clinical features.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onEnableDemoMode}
-            className="px-3 py-1.5 bg-white border border-slate-300 hover:border-teal-500 text-teal-800 font-bold rounded-xl text-xs flex-shrink-0 transition cursor-pointer shadow-2xs"
-          >
-            Launch Demo
-          </button>
-        </section>
-      )}
     </div>
   );
 };

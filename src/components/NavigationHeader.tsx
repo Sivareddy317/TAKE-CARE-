@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types/clinical';
 
+import { AppIcon } from './common/AppLogo';
+
 interface NavigationHeaderProps {
   currentTab: string;
   profile?: UserProfile | null;
@@ -33,29 +35,39 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
   const getTitle = () => {
     switch (currentTab) {
       case 'home':
-        return 'Home';
+        return 'Ayu Health';
       case 'documents':
-        return 'Documents';
+        return 'My Medical History';
       case 'upload':
-        return 'Upload Flow';
+        return 'Scan Documents';
       case 'verification':
         return 'Visual Verification';
       case 'summary':
-        return 'Summary';
+        return 'Health Summary';
       case 'share':
-        return 'Share';
+        return 'Share with Doctor';
+      case 'ask-ayu':
+        return 'Ask Ayu';
+      case 'reminders':
+        return 'Medicine Reminders';
+      case 'appointments':
+        return 'Book Appointment';
+      case 'diabetes':
+        return 'Track Diabetes';
+      case 'account':
+        return 'Account';
       case 'abdm':
-        return 'ABDM';
+        return 'ABDM Health Records';
       case 'doctor-access':
-        return 'View Patient Summary';
+        return 'Doctor Portal Access';
       case 'profile':
-        return 'Profile';
+        return 'Account';
       case 'profile-edit':
         return 'Edit Profile';
       case 'settings':
         return 'Settings';
       default:
-        return 'Take Care';
+        return 'Ayu Health';
     }
   };
 
@@ -65,39 +77,20 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
 
   const avatarInitial = profile?.fullName
     ? profile.fullName.charAt(0).toUpperCase()
-    : 'P';
+    : 'S';
 
   return (
     <header className="sticky top-0 w-full z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-xs">
       <div className="max-w-md mx-auto w-full px-4">
         {/* iOS-style Status Bar Area */}
         <div className="h-5 flex items-center justify-between text-slate-700 text-xs pt-1 px-0.5 font-medium">
-          <span className="font-semibold tracking-tight">9:41</span>
+          <span className="font-semibold tracking-tight">11:50</span>
           <div className="flex items-center gap-1.5 text-slate-600">
             <span className="material-symbols-outlined text-[15px]">signal_cellular_alt</span>
             <span className="material-symbols-outlined text-[15px]">wifi</span>
             <span className="material-symbols-outlined text-[16px]">battery_full</span>
           </div>
         </div>
-
-        {/* Demo Mode Notice Banner in Header if active */}
-        {isDemoMode && (
-          <div className="py-1 px-2.5 my-1 bg-amber-500 text-white rounded-lg flex items-center justify-between text-[11px] font-bold shadow-2xs">
-            <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[14px]">science</span>
-              <span>DEMO MODE (Fictional Data)</span>
-            </div>
-            {onExitDemoMode && (
-              <button
-                type="button"
-                onClick={onExitDemoMode}
-                className="bg-white/20 hover:bg-white/30 text-white px-2 py-0.5 rounded text-[10px] uppercase tracking-wider transition cursor-pointer"
-              >
-                Exit Demo
-              </button>
-            )}
-          </div>
-        )}
 
         {/* Primary Header Row */}
         <div className="h-14 flex items-center justify-between gap-2">
@@ -117,11 +110,9 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
                 onClick={() => onNavigate('home')}
                 className="flex items-center gap-2 cursor-pointer group"
               >
-                <div className="w-8 h-8 rounded-xl bg-teal-600 flex items-center justify-center text-white shadow-xs group-hover:bg-teal-700 transition">
-                  <span className="material-symbols-outlined text-[20px]">local_hospital</span>
-                </div>
+                <AppIcon size={30} />
                 <span className="font-bold text-slate-900 text-base tracking-tight truncate hidden sm:inline">
-                  Take Care
+                  Ayu Health
                 </span>
               </div>
             )}
@@ -129,7 +120,7 @@ export const NavigationHeader: React.FC<NavigationHeaderProps> = ({
 
           {/* Center: Title */}
           <div className="flex-1 text-center min-w-0 px-1">
-            <h1 className="font-bold text-slate-900 text-[16px] truncate">
+            <h1 className="font-bold text-slate-900 text-[15px] truncate">
               {getTitle()}
             </h1>
           </div>

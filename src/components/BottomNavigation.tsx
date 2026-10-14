@@ -8,10 +8,10 @@ interface BottomNavigationProps {
 export const BottomNavigation: React.FC<BottomNavigationProps> = ({ currentTab, onNavigate }) => {
   const tabs = [
     { id: 'home', label: 'Home', icon: 'home' },
-    { id: 'documents', label: 'Documents', icon: 'folder' },
-    { id: 'summary', label: 'Summary', icon: 'auto_awesome' },
-    { id: 'doctor-access', label: 'Doctor Access', icon: 'stethoscope' },
-    { id: 'share', label: 'Share', icon: 'share' },
+    { id: 'documents', label: 'History', icon: 'schedule' },
+    { id: 'ask-ayu', label: 'Ask Ayu', icon: 'auto_awesome' },
+    { id: 'doctor-access', label: 'Doctor', icon: 'stethoscope' },
+    { id: 'account', label: 'Account', icon: 'person_outline' },
   ];
 
   return (
