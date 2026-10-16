@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AyuHealthLogo } from '../common/AppLogo';
+import { ChevronDown, Mail, Globe, AlertCircle, ArrowRight } from 'lucide-react';
 import { ApiService } from '../../services/api';
 import {
   signInWithGoogle,
@@ -153,7 +154,7 @@ export const AyuLoginView: React.FC<AyuLoginViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FFF5F2] via-[#FFF9F6] to-[#FAF8F5] flex flex-col justify-between p-4 sm:p-6 max-w-md mx-auto w-full animate-fadeIn select-none">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between p-4 sm:p-6 max-w-md mx-auto w-full animate-fadeIn select-none">
       {/* Top Branding Section (Matching Image 3) */}
       <div className="pt-6 sm:pt-10 flex flex-col items-center text-center space-y-2">
         <AyuHealthLogo size="lg" showSubtitle={true} className="items-center" />
@@ -161,9 +162,9 @@ export const AyuLoginView: React.FC<AyuLoginViewProps> = ({
 
       {/* Returning User Fast Access Banner (2nd visit direct access) */}
       {rememberedUser && (
-        <div className="my-3 p-3 bg-white/90 border border-[#F05336]/30 rounded-2xl shadow-xs flex items-center justify-between gap-2">
+        <div className="my-3 p-3 bg-white/90 border border-teal-500/30 rounded-2xl shadow-xs flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-[#FFF0ED] text-[#F05336] flex items-center justify-center font-bold text-xs flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-teal-50 text-[#006D60] flex items-center justify-center font-bold text-xs flex-shrink-0">
               {rememberedUser.name ? rememberedUser.name.charAt(0).toUpperCase() : 'U'}
             </div>
             <div className="min-w-0">
@@ -179,7 +180,7 @@ export const AyuLoginView: React.FC<AyuLoginViewProps> = ({
             type="button"
             onClick={handleDirectAccess}
             disabled={isLoading}
-            className="px-3 py-1.5 bg-[#F05336] hover:bg-[#D94125] text-white text-xs font-bold rounded-xl flex-shrink-0 transition cursor-pointer shadow-2xs"
+            className="px-3 py-1.5 bg-[#006D60] hover:bg-[#005248] text-white text-xs font-bold rounded-xl flex-shrink-0 transition cursor-pointer shadow-2xs"
           >
             {isLoading ? 'Accessing...' : 'Direct Access →'}
           </button>
@@ -190,7 +191,7 @@ export const AyuLoginView: React.FC<AyuLoginViewProps> = ({
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-5">
         {errorMessage && (
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-2xl flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px]">error</span>
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span className="flex-1">{errorMessage}</span>
           </div>
         )}
@@ -206,7 +207,7 @@ export const AyuLoginView: React.FC<AyuLoginViewProps> = ({
             <div className="flex items-center bg-[#EFF1F4] rounded-2xl p-1.5 border border-transparent focus-within:border-slate-400 focus-within:bg-white transition">
               <div className="flex items-center gap-1 px-3 py-2 text-slate-800 font-bold text-sm border-r border-slate-300">
                 <span>{countryCode}</span>
-                <span className="material-symbols-outlined text-[16px] text-slate-500">expand_more</span>
+                <ChevronDown className="w-4 h-4 text-slate-500" />
               </div>
               <input
                 type="tel"
@@ -233,8 +234,8 @@ export const AyuLoginView: React.FC<AyuLoginViewProps> = ({
                 .
               </p>
               <div className="flex items-center gap-2 text-slate-400 flex-shrink-0 ml-3">
-                <span className="material-symbols-outlined text-[16px]">mail</span>
-                <span className="material-symbols-outlined text-[16px]">language</span>
+                <Mail className="w-4 h-4" />
+                <Globe className="w-4 h-4" />
               </div>
             </div>
 
@@ -319,7 +320,10 @@ export const AyuLoginView: React.FC<AyuLoginViewProps> = ({
 
           <button
             type="button"
-            onClick={() => setAuthMode((prev) => (prev === 'phone' ? 'email' : 'phone'))}
+            onClick={() => {
+              setErrorMessage(null);
+              setAuthMode((prev) => (prev === 'phone' ? 'email' : 'phone'));
+            }}
             className="py-2 px-3 text-slate-600 hover:text-slate-900 font-semibold transition cursor-pointer"
           >
             {authMode === 'phone' ? 'Use Email' : 'Use Phone'}

@@ -36,7 +36,13 @@ import { DiabetesTrackerView } from './components/features/DiabetesTrackerView';
 import { AyuAccountView } from './components/profile/AyuAccountView';
 import { AyuEditProfileView } from './components/profile/AyuEditProfileView';
 import { SettingsView } from './components/SettingsView';
+import { FamilyDashboard } from './components/family/FamilyDashboard';
+import { NetworkStatusBanner } from './components/common/NetworkStatusBanner';
+import { HealthHistoryView } from './components/history/HealthHistoryView';
 import { AppIcon } from './components/common/AppLogo';
+import { PRELOADED_DOCUMENTS } from './data/mockDocuments';
+import { offlineSyncService } from './services/offlineSyncService';
+import { App as CapApp } from '@capacitor/app';
 
 export default function App() {
   // Auth & User Profile State
@@ -45,8 +51,8 @@ export default function App() {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   // Registration flow transient states
-  const [pendingMobile, setPendingMobile] = useState('+919182302896');
-  const [pendingOtpCode, setPendingOtpCode] = useState('123456');
+  const [pendingMobile, setPendingMobile] = useState('');
+  const [pendingOtpCode, setPendingOtpCode] = useState('');
   const [pendingRegData, setPendingRegData] = useState<{
     firstName: string;
     lastName: string;
@@ -54,29 +60,29 @@ export default function App() {
     gender: string;
   } | null>(null);
 
-  // Active Navigation Tab:
-  // 'onboarding' | 'login' | 'register' | 'consent' | 'verify' | 'home' | 'documents' | 'upload' | 'verification' | 'summary' | 'share' | 'doctor-access' | 'doctor-portal' | 'account' | 'profile-edit' | 'ask-ayu' | 'reminders' | 'appointments' | 'diabetes' | 'settings'
-  const [currentTab, setCurrentTab] = useState<string>('home');
+  // Active Navigation Tab
+  const [currentTab, setCurrentTab] = useState<string>('login');
 
   // Documents State: Real authenticated documents strictly (starts at [] empty)
   const [realUserDocuments, setRealUserDocuments] = useState<ProcessedDocument[]>([]);
   const [activeDocument, setActiveDocument] = useState<ProcessedDocument | null>(null);
+  const [historySubTab, setHistorySubTab] = useState<'vault' | 'timeline'>('vault');
 
   // Doctor session states
   const [doctorSessionCode, setDoctorSessionCode] = useState<string>('');
   const [doctorAuthToken, setDoctorAuthToken] = useState<string>('');
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
 
-  // Active Profile object
+  // Active Profile object - strictly represents current authenticated profile
   const activeProfile: UserProfile = currentProfile || {
-    id: 'prof_default',
-    userId: currentUser?.id || 'usr_siva',
-    fullName: 'Siva Reddy',
-    dob: '1 Apr 2006',
-    gender: 'Male',
-    mobile: '9182302896',
-    isMobileVerified: true,
-    isComplete: true,
+    id: currentUser?.id ? `prof_${currentUser.id}` : 'prof_guest',
+    userId: currentUser?.id || '',
+    fullName: currentUser?.name || 'Member',
+    dob: '',
+    gender: 'Other',
+    mobile: currentUser?.mobile || '',
+    isMobileVerified: !!currentUser?.mobile,
+    isComplete: false,
     updatedAt: Date.now(),
   };
 
@@ -148,11 +154,11 @@ export default function App() {
         } else {
           // If no active session, show onboarding carousel or login
           const hasSeenOnboarding = localStorage.getItem('ayu_seen_onboarding');
-          setCurrentTab(hasSeenOnboarding ? 'home' : 'onboarding');
+          setCurrentTab(hasSeenOnboarding ? 'login' : 'onboarding');
         }
       } catch {
         const hasSeenOnboarding = localStorage.getItem('ayu_seen_onboarding');
-        setCurrentTab(hasSeenOnboarding ? 'home' : 'onboarding');
+        setCurrentTab(hasSeenOnboarding ? 'login' : 'onboarding');
       } finally {
         setIsLoadingAuth(false);
       }
@@ -176,6 +182,39 @@ export default function App() {
     handleHash();
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  // Handle Android native back button & gesture navigation
+  useEffect(() => {
+    let listener: any = null;
+    const setupBackListener = async () => {
+      try {
+        listener = await CapApp.addListener('backButton', ({ canGoBack }) => {
+          setCurrentTab((prevTab) => {
+            // If on any subpage or assistant view, return to home
+            if (prevTab !== 'home') {
+              return 'home';
+            }
+            // If on home, handle exit
+            if (canGoBack) {
+              window.history.back();
+            } else {
+              CapApp.exitApp();
+            }
+            return prevTab;
+          });
+        });
+      } catch {
+        // Non-Capacitor environment fallback
+      }
+    };
+    setupBackListener();
+
+    return () => {
+      if (listener && typeof listener.remove === 'function') {
+        listener.remove();
+      }
+    };
   }, []);
 
   // Handle successful login
@@ -223,21 +262,21 @@ export default function App() {
     setCurrentTab('consent');
   };
 
-  // Handle Consent Given -> completes registration
+  // Handle Consent Given -> completes registration and opens short profile-completion form
   const handleConsentGiven = async () => {
     const fullName = pendingRegData
-      ? `${pendingRegData.firstName} ${pendingRegData.lastName}`
-      : 'Siva Reddy';
+      ? `${pendingRegData.firstName} ${pendingRegData.lastName}`.trim()
+      : (currentUser?.name || 'Take Care Member');
 
     const newProfile: UserProfile = {
       id: 'prof_' + Date.now(),
       userId: currentUser?.id || 'usr_' + Date.now(),
       fullName,
-      dob: pendingRegData?.dob || '1 Apr 2006',
-      gender: (pendingRegData?.gender as any) || 'Male',
-      mobile: pendingMobile.replace(/^\+91/, ''),
+      dob: pendingRegData?.dob || '',
+      gender: (pendingRegData?.gender as any) || 'Other',
+      mobile: pendingMobile ? pendingMobile.replace(/^\+91/, '') : (currentUser?.mobile || ''),
       isMobileVerified: true,
-      isComplete: true,
+      isComplete: false,
       updatedAt: Date.now(),
     };
 
@@ -246,13 +285,20 @@ export default function App() {
     } catch {}
 
     setCurrentProfile(newProfile);
-    setCurrentTab('home');
+    // Mandatory requirement: after registration, show short profile-completion form
+    setCurrentTab('profile-edit');
   };
 
   // Logout handler
   const handleLogout = async () => {
     try {
       await signOut();
+    } catch {}
+    try {
+      await ApiService.logout();
+    } catch {}
+    try {
+      offlineSyncService.clearLocalCacheOnLogout();
     } catch {}
     setCurrentUser(null);
     setCurrentProfile(null);
@@ -316,24 +362,32 @@ export default function App() {
             value: newValue || ent.value,
           };
         });
-        return { ...doc, extractedEntities: updatedEntities };
+        const hasConfirmed = updatedEntities.some((e) => e.status === 'Confirmed' || e.status === 'Edited');
+        return {
+          ...doc,
+          status: hasConfirmed ? ('Confirmed' as const) : doc.status,
+          extractedEntities: updatedEntities,
+        };
       })
     );
 
     if (activeDocument && activeDocument.id === docId) {
       setActiveDocument((prev) => {
         if (!prev) return null;
+        const updatedEntities = prev.extractedEntities.map((ent) =>
+          ent.id === entityId ? { ...ent, status, value: newValue || ent.value } : ent
+        );
+        const hasConfirmed = updatedEntities.some((e) => e.status === 'Confirmed' || e.status === 'Edited');
         return {
           ...prev,
-          extractedEntities: prev.extractedEntities.map((ent) =>
-            ent.id === entityId ? { ...ent, status, value: newValue || ent.value } : ent
-          ),
+          status: hasConfirmed ? ('Confirmed' as const) : prev.status,
+          extractedEntities: updatedEntities,
         };
       });
     }
   };
 
-  // Confirm all entities in a document and sync
+  // Confirm all entities in a document and sync (preserves rejected items)
   const handleConfirmAll = async (docId: string) => {
     try {
       await ApiService.confirmAllEntities(docId);
@@ -346,12 +400,29 @@ export default function App() {
         if (doc.id !== docId) return doc;
         const updatedEntities = doc.extractedEntities.map((ent) => ({
           ...ent,
-          status: 'Confirmed' as const,
+          status: ent.status === 'Rejected' ? ('Rejected' as const) : ('Confirmed' as const),
         }));
         return { ...doc, status: 'Confirmed' as const, extractedEntities: updatedEntities };
       })
     );
-    setCurrentTab('documents');
+
+    if (activeDocument && activeDocument.id === docId) {
+      setActiveDocument((prev) => {
+        if (!prev) return null;
+        const updatedEntities = prev.extractedEntities.map((ent) => ({
+          ...ent,
+          status: ent.status === 'Rejected' ? ('Rejected' as const) : ('Confirmed' as const),
+        }));
+        return {
+          ...prev,
+          status: 'Confirmed' as const,
+          extractedEntities: updatedEntities,
+        };
+      });
+    }
+
+    // Direct transition to summary where confirmed diagnoses & treatments are displayed
+    setCurrentTab('summary');
   };
 
   // Retry document processing
@@ -422,9 +493,9 @@ export default function App() {
   // Loading Splash Screen
   if (isLoadingAuth) {
     return (
-      <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <AppIcon size={64} className="animate-pulse mb-3" />
-        <p className="text-base font-extrabold text-slate-900">Ayu Health</p>
+        <p className="text-base font-extrabold text-slate-900">TAKE CARE</p>
         <p className="text-xs text-slate-500 mt-1">Paperless Medical History powered by AI</p>
       </div>
     );
@@ -470,7 +541,7 @@ export default function App() {
   // 5. OTP VERIFY SCREEN
   if (currentTab === 'verify') {
     return (
-      <div className="min-h-screen bg-[#FAF8F5] flex flex-col justify-center py-6">
+      <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-6">
         <VerifyView
           mobile={pendingMobile}
           initialDevCode={pendingOtpCode}
@@ -510,6 +581,9 @@ export default function App() {
           onNavigate={(tab) => setCurrentTab(tab)}
           onOpenDoctorPortal={() => setCurrentTab('doctor-access')}
           onOpenAcceptanceTests={() => setIsTestModalOpen(true)}
+          onOpenProfile={() => setCurrentTab('account')}
+          onOpenSettings={() => setCurrentTab('settings')}
+          onLogout={handleLogout}
           showBack={true}
           onBack={() => setCurrentTab('documents')}
         />
@@ -543,7 +617,7 @@ export default function App() {
   ].includes(currentTab);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-slate-900 font-sans antialiased">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased">
       {/* Show Navigation Header on sub-pages like documents, upload, summary, share */}
       {!isFullScreenSubpage && (
         <NavigationHeader
@@ -553,10 +627,15 @@ export default function App() {
           onOpenDoctorPortal={() => setCurrentTab('doctor-access')}
           onOpenAcceptanceTests={() => setIsTestModalOpen(true)}
           onOpenProfile={() => setCurrentTab('account')}
-          showBack={['upload', 'doctor-access', 'summary', 'share'].includes(currentTab)}
+          onOpenSettings={() => setCurrentTab('settings')}
+          onLogout={handleLogout}
+          showBack={['upload', 'doctor-access', 'summary', 'share', 'family', 'settings'].includes(currentTab)}
           onBack={() => setCurrentTab('home')}
         />
       )}
+
+      {/* Real-time Network Resilience & Sync Indicator Banner */}
+      <NetworkStatusBanner />
 
       <main className="flex-1 w-full">
         {/* AYU HOME (Images 4 & 7) */}
@@ -608,6 +687,7 @@ export default function App() {
             profile={activeProfile}
             onBack={() => setCurrentTab('home')}
             onNavigateToEditProfile={() => setCurrentTab('profile-edit')}
+            onNavigateToSettings={() => setCurrentTab('settings')}
             onLogout={handleLogout}
             onConnectDoctorSession={(code) => {
               setDoctorSessionCode(code);
@@ -626,16 +706,54 @@ export default function App() {
           />
         )}
 
-        {/* MY MEDICAL HISTORY (DOCUMENT VAULT) */}
+        {/* MY MEDICAL HISTORY (DOCUMENT VAULT & CHRONOLOGICAL TIMELINE) */}
         {currentTab === 'documents' && (
-          <div className="max-w-md mx-auto p-4">
-            <DocumentList
-              documents={realUserDocuments}
-              onSelectDocument={handleSelectDocument}
-              onUploadMore={() => setCurrentTab('upload')}
-              onShareDocument={() => setCurrentTab('share')}
-              onDeleteDocument={handleDeleteDocument}
-            />
+          <div className="max-w-4xl mx-auto p-4 space-y-4">
+            {/* View Mode Toggle */}
+            <div className="flex items-center justify-center">
+              <div className="inline-flex p-1 bg-slate-200/90 rounded-2xl text-xs font-bold shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setHistorySubTab('vault')}
+                  className={`px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-2 ${
+                    historySubTab === 'vault'
+                      ? 'bg-white text-[#006D60] shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>Document Vault ({realUserDocuments.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHistorySubTab('timeline')}
+                  className={`px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-2 ${
+                    historySubTab === 'timeline'
+                      ? 'bg-white text-[#006D60] shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>Chronological History &amp; Audit</span>
+                </button>
+              </div>
+            </div>
+
+            {historySubTab === 'vault' ? (
+              <div className="max-w-md mx-auto">
+                <DocumentList
+                  documents={realUserDocuments}
+                  onSelectDocument={handleSelectDocument}
+                  onUploadMore={() => setCurrentTab('upload')}
+                  onShareDocument={() => setCurrentTab('share')}
+                  onDeleteDocument={handleDeleteDocument}
+                />
+              </div>
+            ) : (
+              <HealthHistoryView
+                documents={realUserDocuments}
+                profile={activeProfile}
+                onSelectDocument={handleSelectDocument}
+              />
+            )}
           </div>
         )}
 
@@ -651,7 +769,7 @@ export default function App() {
 
         {/* HEALTH SUMMARY */}
         {currentTab === 'summary' && (
-          <div className="max-w-md mx-auto p-4">
+          <div className="max-w-4xl mx-auto p-3 sm:p-6 w-full">
             <HealthSummaryView
               profile={activeProfile}
               documents={realUserDocuments}
@@ -664,7 +782,9 @@ export default function App() {
                   setCurrentTab('verification');
                 }
               }}
-              onEnableDemoMode={() => {}}
+              onEnableDemoMode={() => {
+                setRealUserDocuments(PRELOADED_DOCUMENTS);
+              }}
             />
           </div>
         )}
@@ -721,10 +841,19 @@ export default function App() {
             />
           </div>
         )}
+
+        {/* FAMILY HEALTH PROFILES */}
+        {currentTab === 'family' && (
+          <FamilyDashboard
+            currentUserProfile={activeProfile}
+            onNavigateBack={() => setCurrentTab('home')}
+            onSelectDocument={handleSelectDocument}
+          />
+        )}
       </main>
 
       {/* Persistent Bottom Navigation on core tabs */}
-      {['home', 'documents', 'doctor-access'].includes(currentTab) && (
+      {['home', 'documents', 'ask-ayu', 'doctor-access', 'account'].includes(currentTab) && (
         <BottomNavigation
           currentTab={currentTab}
           onNavigate={(tab) => setCurrentTab(tab)}

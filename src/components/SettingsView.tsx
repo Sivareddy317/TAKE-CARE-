@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, AppPermissionsStatus } from '../types/clinical';
 import { ApiService } from '../services/api';
+import { checkFirestoreConnection } from '../services/firebase';
 
 interface SettingsViewProps {
   profile: UserProfile;
@@ -21,11 +22,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onLogout,
   onAccountDeleted,
 }) => {
-  const [permissions, setPermissions] = useState<AppPermissionsStatus>({
+  const [permissions, setPermissions] = useState<AppPermissionsStatus & { microphone?: string }>({
     camera: 'prompt',
     notifications: 'default',
+    microphone: 'prompt',
   });
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [firestoreStatus, setFirestoreStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
@@ -43,11 +46,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             setPermissions((prev) => ({ ...prev, camera: cameraStatus.state as any }));
           };
         } catch {
-          // Camera query unsupported in some browsers
           setPermissions((prev) => ({ ...prev, camera: 'prompt' }));
         }
 
-        // 2. Notifications permission check
+        // 2. Microphone permission check
+        try {
+          const micStatus = await navigator.permissions.query({ name: 'microphone' as any });
+          setPermissions((prev) => ({ ...prev, microphone: micStatus.state as any }));
+          micStatus.onchange = () => {
+            setPermissions((prev) => ({ ...prev, microphone: micStatus.state as any }));
+          };
+        } catch {
+          setPermissions((prev) => ({ ...prev, microphone: 'prompt' }));
+        }
+
+        // 3. Notifications permission check
         try {
           if ('Notification' in window) {
             setPermissions((prev) => ({
@@ -57,6 +70,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             setNotificationsEnabled(Notification.permission === 'granted');
           }
         } catch {}
+      }
+
+      // Verify actual Firestore connectivity
+      try {
+        const isLive = await checkFirestoreConnection();
+        setFirestoreStatus(isLive ? 'connected' : 'offline');
+      } catch {
+        setFirestoreStatus('offline');
       }
     }
 
@@ -98,6 +119,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
+  // Test Microphone Permission on demand
+  const handleTestMicrophone = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      setPermissions((prev) => ({ ...prev, microphone: 'granted' }));
+      alert('Microphone access verified and granted.');
+    } catch {
+      setPermissions((prev) => ({ ...prev, microphone: 'denied' }));
+      alert('Microphone access was denied or no microphone device is connected.');
+    }
+  };
+
   // Account deletion handler (Permanent backend wipe)
   const handleDeleteAccount = async () => {
     if (deleteConfirmationInput !== 'DELETE') {
@@ -119,7 +153,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full pb-20 space-y-4 animate-fadeIn">
+    <div className="flex flex-col w-full pb-36 space-y-4 animate-fadeIn">
       {/* Title */}
       <div>
         <h1 className="text-xl font-bold text-slate-900 tracking-tight">Settings &amp; Privacy</h1>
@@ -150,7 +184,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Permissions & Privacy Section (MANDATORY REQUIREMENT 5) */}
+      {/* Permissions & Privacy Section */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs space-y-3">
         <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
           <div className="flex items-center gap-2">
@@ -165,7 +199,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         <p className="text-[11px] text-slate-500 leading-relaxed">
-          Take Care accesses device features strictly when requested by you for medical document management.
+          Take Care accesses device features strictly when requested by you for medical document management and health assistance.
         </p>
 
         {/* Permissions Table / Items */}
@@ -190,7 +224,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span className="material-symbols-outlined text-teal-600 text-[18px]">photo_camera</span>
               <div>
                 <strong className="block text-slate-800">Camera Access</strong>
-                <span className="text-[10px] text-slate-400">Used only when you tap "Take a Photo" to scan reports</span>
+                <span className="text-[10px] text-slate-400">Used only when you tap "Take Photo" to scan reports or visible injuries</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -208,7 +242,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 type="button"
                 onClick={handleTestCamera}
-                className="text-[10px] text-teal-700 hover:underline font-bold"
+                className="text-[10px] text-teal-700 hover:underline font-bold cursor-pointer"
+              >
+                Test
+              </button>
+            </div>
+          </div>
+
+          {/* Microphone Permission */}
+          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-teal-600 text-[18px]">mic</span>
+              <div>
+                <strong className="block text-slate-800">Microphone Access</strong>
+                <span className="text-[10px] text-slate-400">Used only when you speak questions to Ask Care assistant</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                  permissions.microphone === 'granted'
+                    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                    : permissions.microphone === 'denied'
+                    ? 'text-rose-700 bg-rose-50 border-rose-200'
+                    : 'text-slate-600 bg-slate-100 border-slate-200'
+                }`}
+              >
+                {permissions.microphone === 'granted' ? 'Granted' : permissions.microphone === 'denied' ? 'Denied' : 'On-Demand'}
+              </span>
+              <button
+                type="button"
+                onClick={handleTestMicrophone}
+                className="text-[10px] text-teal-700 hover:underline font-bold cursor-pointer"
               >
                 Test
               </button>
@@ -244,7 +309,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="flex items-center gap-2.5">
               <span className="material-symbols-outlined text-slate-400 text-[18px]">location_off</span>
               <div>
-                <strong className="block text-slate-700">Location, Contacts &amp; Microphone</strong>
+                <strong className="block text-slate-700">Location, Contacts, Phone Calls &amp; SMS</strong>
                 <span className="text-[10px] text-slate-400">Strictly never requested or accessed by Take Care</span>
               </div>
             </div>
@@ -261,16 +326,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-amber-500 text-[20px]">cloud_done</span>
             <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Firebase Auth &amp; Firestore
+              Storage &amp; Sync Engine
             </h2>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-            Connected
-          </span>
+          {firestoreStatus === 'connected' ? (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+              Live Firestore Verified
+            </span>
+          ) : firestoreStatus === 'checking' ? (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
+              Checking status...
+            </span>
+          ) : (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">
+              Encrypted Local Storage (Active)
+            </span>
+          )}
         </div>
         <p className="text-[11px] text-slate-500 leading-relaxed">
-          Your profile, medical records, and doctor sharing codes are securely synchronized to Cloud Firestore and protected by role-based security rules.
+          {firestoreStatus === 'connected'
+            ? 'Your profile, health records, and sharing codes are synchronized with Cloud Firestore and secured by user-isolated rules.'
+            : 'Your data is securely stored on this device in encrypted local storage. Cloud sync connects automatically when network conditions allow.'}
         </p>
         <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-200/60 text-[11px] text-slate-600 space-y-1">
           <div className="flex justify-between items-center">
@@ -278,8 +355,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <span className="font-mono font-medium text-slate-700">ai-studio-takecareclinical</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-slate-400">Authentication:</span>
-            <span className="font-medium text-emerald-700">Firebase Auth Active</span>
+            <span className="text-slate-400">Cloud Status:</span>
+            <span className={`font-medium ${firestoreStatus === 'connected' ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {firestoreStatus === 'connected' ? 'Verified Online' : 'Local Standalone Mode'}
+            </span>
           </div>
         </div>
       </div>
@@ -324,6 +403,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
       </div>
 
+      {/* Network & Standalone Status Card */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px] text-[#006D60]">cloud_sync</span>
+            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Network &amp; Sync Mode
+            </h2>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Standalone + Wi-Fi Sync
+          </span>
+        </div>
+
+        <p className="text-[11px] text-slate-500 leading-relaxed">
+          Take Care operates <strong>100% standalone on-device</strong>. Document parsing, verification, single-page PDF generation, and clinical assistant run directly in this APK without needing a laptop server in the background. If your laptop is running on local Wi-Fi, it seamlessly synchronizes.
+        </p>
+
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px]">
+          <span className="text-slate-500 font-medium">Active Server Host:</span>
+          <span className="font-mono font-bold text-[#006D60]">{ApiService.getBaseUrl() || 'On-Device Standalone'}</span>
+        </div>
+      </div>
+
       {/* Account Actions: Logout & Permanent Deletion */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs space-y-3">
         <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Account Actions</h2>
@@ -347,6 +450,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <span>Delete Account &amp; All Data</span>
           </button>
         </div>
+      </div>
+
+      {/* Prominent Footer Quotation & Badge (Part A Rule) */}
+      <div className="pt-4 pb-12 flex flex-col items-center justify-center text-center space-y-2">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-[#006D60] text-xs font-bold tracking-widest uppercase shadow-2xs">
+          <span className="material-symbols-outlined text-[16px] text-[#006D60]">favorite</span>
+          <span>DESIGNED FOR HEALTH</span>
+        </div>
+        <p className="text-xs text-slate-600 italic font-medium max-w-xs px-4">
+          “Take care of your body. It's the only place you have to live.”
+        </p>
+        <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">
+          Take Care Digital Health • v2.4.0 Secure
+        </span>
       </div>
 
       {/* Account Deletion Confirmation Modal */}

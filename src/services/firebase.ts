@@ -39,14 +39,22 @@ export const db = firebaseConfigJson.firestoreDatabaseId
   : getFirestore(app);
 
 // Test Firestore Connection as required by Firebase integration guidelines
-export async function testConnection() {
+export async function checkFirestoreConnection(): Promise<boolean> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Please check your Firebase configuration.');
+    return true;
+  } catch (error: any) {
+    if (error?.code === 'permission-denied' || error?.code === 'not-found') {
+      return true;
     }
+    return false;
   }
+}
+
+export async function testConnection() {
+  try {
+    await checkFirestoreConnection();
+  } catch {}
 }
 
 // Auto-run connection check on module initialization

@@ -20,7 +20,7 @@ export const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({ onFinish
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FFF5F2] via-[#FFF9F6] to-[#FAF8F5] flex flex-col justify-between p-4 sm:p-6 max-w-md mx-auto w-full animate-fadeIn select-none">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between p-4 sm:p-6 max-w-md mx-auto w-full animate-fadeIn select-none">
       {/* Top Header */}
       <div className="flex items-center justify-between pt-2">
         <AyuHealthLogo size="md" />
@@ -231,7 +231,7 @@ export const OnboardingCarousel: React.FC<OnboardingCarouselProps> = ({ onFinish
             </div>
 
             {/* Stable Sugar Status Badge */}
-            <div className="bg-[#FFF0ED] text-[#C2410C] border border-[#FFDDD6] rounded-2xl p-2.5 text-center text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs">
+            <div className="bg-teal-50 text-teal-800 border border-teal-200 rounded-2xl p-2.5 text-center text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs">
               <span className="text-sm">✨</span>
               <span>Your monthly sugar levels look stable.</span>
             </div>

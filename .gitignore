@@ -4,5 +4,16 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
+.env
+.env.local
+.env.*.local
 !.env.example
+.takecare_db.json
+.takecare_*.json
+.sharing_sessions.json
+.tempmediaStorage/
+android/.gradle/
+android/app/build/
+android/build/
+android/.idea/
+android/local.properties

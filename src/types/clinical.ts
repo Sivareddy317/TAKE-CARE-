@@ -45,16 +45,36 @@ export interface UserProfile {
   userId: string;
   fullName: string;
   dob?: string;
+  age?: number | string;
   gender?: 'Male' | 'Female' | 'Other' | 'Prefer not to say' | '';
   mobile: string;
   isMobileVerified: boolean;
   email?: string;
+  avatarUrl?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   preferredLanguage?: string;
   bloodGroup?: string;
+  hasHighBp?: boolean;
+  hasDiabetes?: boolean;
+  latestBp?: string;
+  latestBloodSugar?: string;
+  allergiesSummary?: string;
+  currentMedicinesSummary?: string;
   isComplete: boolean;
   updatedAt: number;
+}
+
+export interface InjuryAnalysisResult {
+  id: string;
+  injuryType: 'burn' | 'wound' | 'cut' | 'visible_injury';
+  observations: string[];
+  limitations: string[];
+  immediateFirstAid: string[];
+  emergencyWarningSigns: string[];
+  requiresEmergencyCare: boolean;
+  serviceConfigured: boolean;
+  timestamp: number;
 }
 
 export interface AuthUser {
@@ -156,4 +176,45 @@ export interface UserHealthSummary {
 export interface AppPermissionsStatus {
   camera: 'granted' | 'denied' | 'prompt' | 'unsupported';
   notifications: 'granted' | 'denied' | 'default' | 'unsupported';
+}
+
+// ==========================================
+// FAMILY HEALTH PROFILES & ACCESS MODELS
+// ==========================================
+
+export type FamilyRelationship = 'Parent' | 'Spouse' | 'Child' | 'Sibling' | 'Other';
+export type FamilyPermissionLevel = 'complete' | 'emergency' | 'none';
+export type FamilyAccessStatus = 'active' | 'pending_consent' | 'revoked' | 'expired';
+
+export interface FamilyMember {
+  id: string;
+  ownerUserId: string; // The user who manages this link
+  targetUserId?: string; // Registered user ID if they have a Take Care account
+  fullName: string;
+  relationship: FamilyRelationship;
+  mobile: string;
+  dob?: string;
+  isMinor?: boolean;
+  guardianName?: string;
+  guardianConsentGiven?: boolean;
+  
+  // Permission settings
+  permissionLevel: FamilyPermissionLevel;
+  status: FamilyAccessStatus;
+  grantedAt?: number;
+  expiresAt?: number;
+  invitationCode?: string;
+  isOwner?: boolean;
+}
+
+export interface FamilyAccessAuditLog {
+  id: string;
+  timestamp: number;
+  actorUserId: string;
+  actorName: string;
+  targetProfileId: string;
+  targetProfileName: string;
+  action: 'invited' | 'consent_approved' | 'access_granted' | 'access_viewed' | 'access_changed' | 'access_revoked';
+  permissionLevel: FamilyPermissionLevel;
+  details?: string;
 }

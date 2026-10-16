@@ -61,10 +61,10 @@ export const AyuHealthLogo: React.FC<AyuHealthLogoProps> = ({
   className = '',
   onClick,
 }) => {
-  const heartSizes = {
-    sm: 26,
-    md: 34,
-    lg: 44,
+  const iconSizes = {
+    sm: 24,
+    md: 32,
+    lg: 42,
   };
 
   const titleSizes = {
@@ -73,47 +73,21 @@ export const AyuHealthLogo: React.FC<AyuHealthLogoProps> = ({
     lg: 'text-3xl',
   };
 
-  const heartPx = heartSizes[size];
+  const iconPx = iconSizes[size];
 
   return (
     <div
       onClick={onClick}
       className={`flex flex-col select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
-      <div className="flex items-center gap-2">
-        {/* Coral-red Heart Icon with inner white checkmark */}
-        <svg
-          width={heartPx}
-          height={heartPx}
-          viewBox="0 0 48 48"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="flex-shrink-0"
-        >
-          {/* Heart path */}
-          <path
-            d="M24 41.5C24 41.5 6 29.5 6 17C6 10.5 11 6 17.5 6C21.2 6 24 8.5 24 8.5C24 8.5 26.8 6 30.5 6C37 6 42 10.5 42 17C42 29.5 24 41.5 24 41.5Z"
-            fill="#F05336"
-          />
-          {/* Inner dark heart center outline */}
-          <path
-            d="M24 33C24 33 13 25 13 16.5C13 12 16.5 9 20.5 9C23 9 24 10.5 24 10.5C24 10.5 25 9 27.5 9C31.5 9 35 12 35 16.5C35 25 24 33 24 33Z"
-            fill="#1E293B"
-          />
-          {/* White checkmark inside the heart */}
-          <path
-            d="M19 16.5L22.5 20L29 13.5"
-            stroke="#FFFFFF"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+      <div className="flex items-center gap-2.5">
+        {/* Take Care Medical Cross Badge Icon */}
+        <AppIcon size={iconPx} />
 
-        {/* Brand Name Text: Ayu in slate-900, Health in coral-red */}
+        {/* Brand Name Text: TAKE in slate-900, CARE in teal (#006D60) */}
         <div className="flex items-baseline font-black tracking-tight leading-none">
-          <span className={`${titleSizes[size]} text-slate-900 font-extrabold`}>Ayu</span>
-          <span className={`${titleSizes[size]} text-[#F05336] font-bold ml-1.5`}>Health</span>
+          <span className={`${titleSizes[size]} text-slate-900 font-extrabold`}>TAKE</span>
+          <span className={`${titleSizes[size]} text-[#006D60] font-bold ml-1.5`}>CARE</span>
         </div>
       </div>
 
@@ -126,3 +100,6 @@ export const AyuHealthLogo: React.FC<AyuHealthLogoProps> = ({
     </div>
   );
 };
+
+export const TakeCareLogo = AyuHealthLogo;
+

@@ -149,6 +149,17 @@ export const TwoPanelVerification: React.FC<TwoPanelVerificationProps> = ({
   const confirmedCount = document.extractedEntities.filter((e) => e.status === 'Confirmed' || e.status === 'Edited').length;
   const isSyncDisabled = !isImageOnly && confirmedCount === 0;
 
+  const handleConfirmAllClick = () => {
+    document.extractedEntities.forEach((ent) => {
+      if (ent.status !== 'Rejected') {
+        ent.status = 'Confirmed';
+      }
+    });
+    document.status = 'Confirmed';
+    onConfirmAll(document.id);
+    showToast('All reviewed findings confirmed and saved.');
+  };
+
   return (
     <div className="w-full flex flex-col min-h-screen bg-slate-100 text-slate-900 pb-20 animate-fadeIn">
       {/* Top Banner: Verification Chrome */}
@@ -191,7 +202,7 @@ export const TwoPanelVerification: React.FC<TwoPanelVerificationProps> = ({
         <div className="flex items-center gap-2">
           {/* Action button: Save as image for image-only; Confirm reviewed findings for text records */}
           <button
-            onClick={() => onConfirmAll(document.id)}
+            onClick={handleConfirmAllClick}
             disabled={isSyncDisabled}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition active:scale-95 ${
               isSyncDisabled
@@ -409,17 +420,49 @@ export const TwoPanelVerification: React.FC<TwoPanelVerificationProps> = ({
                   <span>May no longer be current (older than 6 months)</span>
                 </div>
               )}
+
+              {/* Document Type Uncertainty Notice & Selector */}
+              {document.qualityIssues?.some((q) => q.message.includes('Document type uncertain')) && (
+                <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <span className="material-symbols-outlined text-[16px] text-amber-700">help</span>
+                    <span>Document type uncertain</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800">
+                    Classification confidence is low. Please select the appropriate document type:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {(['prescription', 'lab', 'scan', 'discharge', 'other'] as const).map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => {
+                          document.category = cat;
+                          showToast(`Category set to ${cat}`);
+                        }}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer ${
+                          document.category === cat
+                            ? 'bg-amber-600 text-white border-amber-600'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-amber-100/50'
+                        }`}
+                      >
+                        {cat === 'prescription' ? 'Prescription' : cat === 'lab' ? 'Lab Report' : cat === 'scan' ? 'Radiology/Scan' : cat === 'discharge' ? 'Discharge' : 'Other'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* SPECIAL STATE: Image Only (Part A Section A8) */}
+            {/* SPECIAL STATE: Image Only */}
             {isImageOnly && (
               <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 space-y-2.5">
-                <div className="flex items-center gap-2 font-bold text-xs">
+                <div className="flex items-center gap-2 font-bold text-xs text-sky-900">
                   <span className="material-symbols-outlined text-sky-700 text-[18px]">image</span>
-                  <span>Image only — no reliable clinical text detected</span>
+                  <span>No reliable clinical text detected</span>
                 </div>
-                <p className="text-xs text-sky-800 leading-relaxed">
-                  Image saved. No reliable clinical text detected, so nothing was extracted. The image has been preserved in your health vault.
+                <p className="text-xs text-sky-800 leading-relaxed font-medium">
+                  No reliable clinical text detected. Upload the corresponding medical report if available.
                 </p>
                 <div className="pt-2 flex items-center gap-2">
                   <button
@@ -528,8 +571,9 @@ export const TwoPanelVerification: React.FC<TwoPanelVerificationProps> = ({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
+                              ent.status = 'Rejected';
                               onUpdateEntity(document.id, ent.id, 'Rejected');
-                              showToast('Finding rejected.');
+                              showToast('Finding marked as rejected.');
                             }}
                             className="px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 rounded border border-rose-200 cursor-pointer"
                           >
@@ -539,8 +583,9 @@ export const TwoPanelVerification: React.FC<TwoPanelVerificationProps> = ({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
+                              ent.status = 'Confirmed';
                               onUpdateEntity(document.id, ent.id, 'Confirmed');
-                              showToast('Finding confirmed.');
+                              showToast('Finding confirmed and updated.');
                             }}
                             className={`px-3 py-1 text-xs font-bold rounded cursor-pointer ${
                               isConfirmed

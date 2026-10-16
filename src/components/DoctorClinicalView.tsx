@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ProcessedDocument } from '../types/clinical';
 import { PRELOADED_DOCUMENTS } from '../data/mockDocuments';
+import { ApiService } from '../services/api';
 
 interface DoctorClinicalViewProps {
   sessionCode: string;
@@ -52,14 +53,15 @@ export const DoctorClinicalView: React.FC<DoctorClinicalViewProps> = ({
           headers['Authorization'] = `Bearer ${authToken}`;
         }
 
-        const res = await fetch('/api/doctor/summary', { headers });
+        const res = await fetch(ApiService.url('/api/doctor/summary'), { headers });
 
         if (res.status === 403 || res.status === 401) {
           if (isMounted) setIsSessionRevoked(true);
           return;
         }
 
-        if (res.ok) {
+        const cType = res.headers.get('content-type') || '';
+        if (res.ok && cType.includes('application/json')) {
           const data = await res.json();
           if (isMounted && data.success) {
             if (typeof data.remainingSeconds === 'number') {
@@ -95,8 +97,9 @@ export const DoctorClinicalView: React.FC<DoctorClinicalViewProps> = ({
           }
         } else {
           // Check active session if authToken was direct
-          const activeRes = await fetch('/api/share/active-session');
-          if (activeRes.ok) {
+          const activeRes = await fetch(ApiService.url('/api/share/active-session'));
+          const actType = activeRes.headers.get('content-type') || '';
+          if (activeRes.ok && actType.includes('application/json')) {
             const activeData = await activeRes.json();
             if (isMounted && activeData.active && activeData.session) {
               setSessionSeconds(activeData.session.remainingSeconds);
@@ -153,7 +156,7 @@ export const DoctorClinicalView: React.FC<DoctorClinicalViewProps> = ({
   const handleSaveAndSign = async () => {
     try {
       if (authToken) {
-        await fetch('/api/doctor/sign-note', {
+        await fetch(ApiService.url('/api/doctor/sign-note'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -175,7 +178,7 @@ export const DoctorClinicalView: React.FC<DoctorClinicalViewProps> = ({
   const handleRevokeFromDoctor = async () => {
     if (window.confirm('Close active consultation session and return to Take Care?')) {
       try {
-        await fetch('/api/share/revoke', {
+        await fetch(ApiService.url('/api/share/revoke'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: sessionCode }),

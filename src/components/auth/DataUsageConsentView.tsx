@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowLeft, Mail, Globe } from 'lucide-react';
 
 interface DataUsageConsentViewProps {
   onConsentGiven: () => void;
@@ -13,7 +14,10 @@ export const DataUsageConsentView: React.FC<DataUsageConsentViewProps> = ({
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] flex flex-col justify-between p-4 sm:p-6 max-w-md mx-auto w-full animate-fadeIn select-none">
+    <div
+      className="min-h-screen bg-slate-50 flex flex-col justify-between p-4 sm:p-6 max-w-md mx-auto w-full animate-fadeIn select-none"
+      style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)' }}
+    >
       {/* Top Header */}
       <div className="flex items-center justify-between pt-2">
         <div className="flex items-center gap-2">
@@ -22,13 +26,13 @@ export const DataUsageConsentView: React.FC<DataUsageConsentViewProps> = ({
             onClick={onBack}
             className="w-8 h-8 rounded-full hover:bg-slate-200/60 flex items-center justify-center text-slate-700 transition cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+            <ArrowLeft className="w-5 h-5" />
           </button>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">Data usage</h2>
         </div>
         <div className="flex items-center gap-3 text-slate-400">
-          <span className="material-symbols-outlined text-[20px]">mail</span>
-          <span className="material-symbols-outlined text-[20px]">language</span>
+          <Mail className="w-4 h-4" />
+          <Globe className="w-4 h-4" />
         </div>
       </div>
 
@@ -57,7 +61,7 @@ export const DataUsageConsentView: React.FC<DataUsageConsentViewProps> = ({
           </p>
 
           <p className="text-slate-600">
-            AI is central to how Ayu works, it's how your records are read, organised, and made useful. Because of this, AI processing cannot be turned off independently.
+            AI is central to how Take Care works, it's how your records are read, organised, and made useful. Because of this, AI processing cannot be turned off independently.
           </p>
 
           <p className="text-slate-600">
@@ -108,7 +112,7 @@ export const DataUsageConsentView: React.FC<DataUsageConsentViewProps> = ({
             className="w-4 h-4 mt-0.5 rounded text-slate-900 border-slate-300 focus:ring-slate-400 cursor-pointer"
           />
           <span className="text-[11px] text-slate-600 group-hover:text-slate-900 leading-tight">
-            I've read this and I'm okay with Ayu using AI to process my health data.
+            I've read this and I'm okay with Take Care using AI to process my health data.
           </span>
         </label>
 
@@ -143,11 +147,11 @@ export const DataUsageConsentView: React.FC<DataUsageConsentViewProps> = ({
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
               {activeModal === 'privacy' &&
-                'Ayu Health uses end-to-end 256-bit encryption for stored clinical documents. No clinical data is ever shared with third-party advertising networks.'}
+                'Take Care uses end-to-end 256-bit encryption for stored clinical documents. No clinical data is ever shared with third-party advertising networks.'}
               {activeModal === 'rights' &&
                 'Under the Digital Personal Data Protection Act (DPDP), you retain full rights to inspect, export, or permanently erase all medical documents and AI extractions.'}
               {activeModal === 'grievance' &&
-                'Grievance Officer: Dr. A. Sharma (Compliance & Clinical Ethics), grievance@ayuhealth.in, Mumbai, Maharashtra.'}
+                'Grievance Officer: Dr. A. Sharma (Compliance & Clinical Ethics), grievance@takecare.health, Mumbai, Maharashtra.'}
             </p>
             <button
               type="button"

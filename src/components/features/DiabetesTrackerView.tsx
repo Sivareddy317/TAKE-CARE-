@@ -108,7 +108,7 @@ export const DiabetesTrackerView: React.FC<DiabetesTrackerViewProps> = ({ onBack
         <button
           type="button"
           onClick={() => setIsLogging(!isLogging)}
-          className="px-3 py-1.5 bg-[#F05336] hover:bg-[#D94125] text-white rounded-xl text-xs font-bold flex items-center gap-1 transition cursor-pointer shadow-xs"
+          className="px-3 py-1.5 bg-[#006D60] hover:bg-[#005248] text-white rounded-xl text-xs font-bold flex items-center gap-1 transition cursor-pointer shadow-xs"
         >
           <span className="material-symbols-outlined text-[16px]">{isLogging ? 'close' : 'add'}</span>
           <span>{isLogging ? 'Cancel' : 'Log Sugar'}</span>
@@ -164,7 +164,7 @@ export const DiabetesTrackerView: React.FC<DiabetesTrackerViewProps> = ({ onBack
 
           <button
             type="submit"
-            className="w-full py-2.5 bg-[#F05336] hover:bg-[#D94125] text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
+            className="w-full py-2.5 bg-[#006D60] hover:bg-[#005248] text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
           >
             Save Reading
           </button>
@@ -247,7 +247,7 @@ export const DiabetesTrackerView: React.FC<DiabetesTrackerViewProps> = ({ onBack
         </div>
 
         {/* Status Banner */}
-        <div className="bg-[#FFF0ED] text-[#C2410C] border border-[#FFDDD6] rounded-2xl p-3 text-center text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs">
+        <div className="bg-teal-50 text-teal-800 border border-teal-200 rounded-2xl p-3 text-center text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs">
           <span className="text-base">✨</span>
           <span>Your monthly sugar levels look stable.</span>
         </div>

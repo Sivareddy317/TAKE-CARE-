@@ -1,4 +1,16 @@
 import React, { useState } from 'react';
+import {
+  ArrowLeft,
+  Lock,
+  QrCode,
+  User,
+  Settings,
+  Globe,
+  HelpCircle,
+  LogOut,
+  Heart,
+  Check,
+} from 'lucide-react';
 import { UserProfile } from '../../types/clinical';
 import { ScanDoctorQrModal } from '../features/ScanDoctorQrModal';
 
@@ -6,6 +18,7 @@ interface AyuAccountViewProps {
   profile?: UserProfile | null;
   onBack: () => void;
   onNavigateToEditProfile: () => void;
+  onNavigateToSettings?: () => void;
   onLogout: () => void;
   onConnectDoctorSession: (code: string) => void;
 }
@@ -14,6 +27,7 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
   profile,
   onBack,
   onNavigateToEditProfile,
+  onNavigateToSettings,
   onLogout,
   onConnectDoctorSession,
 }) => {
@@ -24,19 +38,24 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
 
   const languages = ['English', 'हिंदी (Hindi)', 'తెలుగు (Telugu)', 'தமிழ் (Tamil)', 'मराठी (Marathi)', 'বাংলা (Bengali)', 'ಕನ್ನಡ (Kannada)'];
 
-  const fullName = profile?.fullName || 'Siva Reddy';
+  const fullName = profile?.fullName && profile.fullName.trim()
+    ? profile.fullName.trim()
+    : (profile?.mobile ? `User ${profile.mobile.slice(-4)}` : 'Take Care Patient');
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] flex flex-col justify-between p-4 sm:p-6 max-w-md mx-auto w-full animate-fadeIn select-none">
+    <div
+      className="min-h-screen bg-slate-50 flex flex-col justify-between p-4 sm:p-6 max-w-md mx-auto w-full animate-fadeIn select-none"
+      style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)' }}
+    >
       <div className="space-y-5">
-        {/* Top Header (Matching Image 5) */}
+        {/* Top Header */}
         <div className="flex items-center gap-2 pt-2">
           <button
             type="button"
             onClick={onBack}
             className="w-8 h-8 rounded-full hover:bg-slate-200/60 flex items-center justify-center text-slate-700 transition cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+            <ArrowLeft className="w-5 h-5" />
           </button>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">Account</h2>
         </div>
@@ -49,18 +68,18 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
           )}
         </div>
 
-        {/* Dark Oval Security Card (Matching Image 5) */}
-        <div className="bg-[#2E2836] rounded-3xl p-5 text-white shadow-sm flex items-center gap-4">
-          <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center flex-shrink-0 text-white">
-            <span className="material-symbols-outlined text-[22px]">lock</span>
+        {/* Dark Oval Security Card */}
+        <div className="bg-[#1A2E2B] rounded-3xl p-5 text-white shadow-sm flex items-center gap-4">
+          <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 text-white">
+            <Lock className="w-5 h-5 text-teal-300" />
           </div>
           <div className="text-xs leading-relaxed font-medium">
-            Your data is <span className="text-[#F05336] font-bold">secure</span>, you are in{' '}
-            <span className="text-[#F05336] font-bold">control</span> of your data.
+            Your medical records are <span className="text-teal-300 font-bold">encrypted & secure</span>. You remain in{' '}
+            <span className="text-teal-300 font-bold">full control</span> of access.
           </div>
         </div>
 
-        {/* Menu Buttons List (Matching Image 5) */}
+        {/* Menu Buttons List */}
         <div className="space-y-2.5 pt-2">
           {/* Scan Doctor's QR Code */}
           <button
@@ -68,10 +87,8 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
             onClick={() => setIsQrModalOpen(true)}
             className="w-full py-4 px-5 bg-white hover:bg-slate-50 border border-slate-200/70 rounded-full shadow-2xs flex items-center gap-3.5 text-left transition cursor-pointer group active:scale-[0.99]"
           >
-            <span className="material-symbols-outlined text-slate-800 text-[22px]">
-              qr_code_scanner
-            </span>
-            <span className="text-sm font-bold text-slate-900 group-hover:text-teal-800 transition">
+            <QrCode className="w-5 h-5 text-slate-700" />
+            <span className="text-sm font-bold text-slate-900 group-hover:text-[#006D60] transition">
               Scan Doctor's QR code
             </span>
           </button>
@@ -82,13 +99,25 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
             onClick={onNavigateToEditProfile}
             className="w-full py-4 px-5 bg-white hover:bg-slate-50 border border-slate-200/70 rounded-full shadow-2xs flex items-center gap-3.5 text-left transition cursor-pointer group active:scale-[0.99]"
           >
-            <span className="material-symbols-outlined text-slate-800 text-[22px]">
-              person_outline
-            </span>
-            <span className="text-sm font-bold text-slate-900 group-hover:text-teal-800 transition">
+            <User className="w-5 h-5 text-slate-700" />
+            <span className="text-sm font-bold text-slate-900 group-hover:text-[#006D60] transition">
               Edit Profile
             </span>
           </button>
+
+          {/* Settings & Permissions */}
+          {onNavigateToSettings && (
+            <button
+              type="button"
+              onClick={onNavigateToSettings}
+              className="w-full py-4 px-5 bg-white hover:bg-slate-50 border border-slate-200/70 rounded-full shadow-2xs flex items-center gap-3.5 text-left transition cursor-pointer group active:scale-[0.99]"
+            >
+              <Settings className="w-5 h-5 text-slate-700" />
+              <span className="text-sm font-bold text-slate-900 group-hover:text-[#006D60] transition">
+                Settings &amp; Permissions
+              </span>
+            </button>
+          )}
 
           {/* Change Language */}
           <button
@@ -96,10 +125,8 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
             onClick={() => setIsLanguageModalOpen(true)}
             className="w-full py-4 px-5 bg-white hover:bg-slate-50 border border-slate-200/70 rounded-full shadow-2xs flex items-center gap-3.5 text-left transition cursor-pointer group active:scale-[0.99]"
           >
-            <span className="material-symbols-outlined text-slate-800 text-[22px]">
-              language
-            </span>
-            <span className="text-sm font-bold text-slate-900 group-hover:text-teal-800 transition">
+            <Globe className="w-5 h-5 text-slate-700" />
+            <span className="text-sm font-bold text-slate-900 group-hover:text-[#006D60] transition">
               Change Language
             </span>
             <span className="ml-auto text-xs font-semibold text-slate-400">
@@ -113,11 +140,9 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
             onClick={() => setIsHelpModalOpen(true)}
             className="w-full py-4 px-5 bg-white hover:bg-slate-50 border border-slate-200/70 rounded-full shadow-2xs flex items-center gap-3.5 text-left transition cursor-pointer group active:scale-[0.99]"
           >
-            <span className="material-symbols-outlined text-slate-800 text-[22px]">
-              support
-            </span>
-            <span className="text-sm font-bold text-slate-900 group-hover:text-teal-800 transition">
-              Help
+            <HelpCircle className="w-5 h-5 text-slate-700" />
+            <span className="text-sm font-bold text-slate-900 group-hover:text-[#006D60] transition">
+              Help & Support
             </span>
           </button>
 
@@ -127,9 +152,7 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
             onClick={onLogout}
             className="w-full py-4 px-5 bg-white hover:bg-rose-50/50 border border-slate-200/70 rounded-full shadow-2xs flex items-center gap-3.5 text-left transition cursor-pointer group active:scale-[0.99]"
           >
-            <span className="material-symbols-outlined text-slate-800 group-hover:text-rose-600 text-[22px]">
-              logout
-            </span>
+            <LogOut className="w-5 h-5 text-slate-700 group-hover:text-rose-600" />
             <span className="text-sm font-bold text-slate-900 group-hover:text-rose-600 transition">
               Logout
             </span>
@@ -137,13 +160,18 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
         </div>
       </div>
 
-      {/* Footer (Matching Image 5) */}
-      <div className="py-6 flex justify-center">
-        <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-200/60 text-slate-600 text-xs font-semibold">
-          <span>Made with</span>
-          <span className="text-[#F05336]">❤️</span>
-          <span>from Mumbai</span>
+      {/* Footer Motto & Quotation */}
+      <div className="pt-6 pb-24 flex flex-col items-center justify-center text-center space-y-2">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-[#006D60] text-xs font-bold tracking-widest uppercase shadow-2xs">
+          <Heart className="w-4 h-4 text-[#006D60] fill-[#006D60]" />
+          <span>DESIGNED FOR HEALTH</span>
         </div>
+        <p className="text-xs text-slate-500 italic max-w-xs px-4">
+          “Take care of your body. It's the only place you have to live.”
+        </p>
+        <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">
+          Take Care Health • v2.4.0 Secure
+        </span>
       </div>
 
       {/* QR Code Scanner Modal */}
@@ -184,7 +212,7 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
                 >
                   <span>{lang}</span>
                   {selectedLanguage === lang && (
-                    <span className="material-symbols-outlined text-[16px] text-teal-600">check</span>
+                    <Check className="w-4 h-4 text-[#006D60]" />
                   )}
                 </button>
               ))}
@@ -210,7 +238,7 @@ export const AyuAccountView: React.FC<AyuAccountViewProps> = ({
             <div className="space-y-2 text-xs text-slate-600">
               <p>For assistance with digitizing prescriptions, clinical records, or account deletion, reach out to our dedicated clinical support team:</p>
               <div className="p-3 bg-slate-50 rounded-xl space-y-1 font-mono text-[11px] text-slate-800">
-                <p>Email: support@ayuhealth.in</p>
+                <p>Email: support@takecare.health</p>
                 <p>Helpline: 1800-209-CARE (Toll Free)</p>
                 <p>Hours: Mon - Sat, 9:00 AM - 8:00 PM IST</p>
               </div>

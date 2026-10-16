@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
+import zlib from 'zlib';
 import { GoogleGenAI } from '@google/genai';
 import {
   validateAndSanitizeExtraction,
@@ -13,6 +14,7 @@ import {
   OcrLine,
 } from './src/services/clinicalAnalysis';
 import { runAllRegressionTests } from './src/services/regressionRunner';
+import { processDocumentUniversal } from './src/services/universalDocumentPipeline';
 
 dotenv.config();
 
@@ -54,14 +56,22 @@ export interface UserProfileRecord {
   userId: string;
   fullName: string;
   dob?: string;
+  age?: number | string;
   gender?: string;
   mobile: string;
   isMobileVerified: boolean;
   email?: string;
+  avatarUrl?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   preferredLanguage?: string;
   bloodGroup?: string;
+  hasHighBp?: boolean;
+  hasDiabetes?: boolean;
+  latestBp?: string;
+  latestBloodSugar?: string;
+  allergiesSummary?: string;
+  currentMedicinesSummary?: string;
   isComplete: boolean;
   updatedAt: number;
 }
@@ -119,6 +129,8 @@ const userDocuments = new Map<string, StoredDocument[]>(); // userId -> document
 const sharingSessions = new Map<string, SharingSessionRecord>(); // code -> session
 const doctorTokens = new Map<string, { code: string; userId: string; expiresAt: number }>();
 const userAuthSessions = new Map<string, { userId: string; expiresAt: number }>(); // token -> session
+const familyMembers = new Map<string, any[]>(); // userId -> FamilyMember[]
+const familyAuditLogs = new Map<string, any[]>(); // userId -> FamilyAccessAuditLog[]
 
 // Rate-limiting map: client identifier -> { count: number, lockedUntil: number }
 const failedAttempts = new Map<string, { count: number; lockedUntil: number }>();
@@ -134,6 +146,8 @@ function saveDbToDisk() {
       sharingSessions: Array.from(sharingSessions.entries()),
       doctorTokens: Array.from(doctorTokens.entries()),
       userAuthSessions: Array.from(userAuthSessions.entries()),
+      familyMembers: Array.from(familyMembers.entries()),
+      familyAuditLogs: Array.from(familyAuditLogs.entries()),
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
   } catch {
@@ -171,6 +185,12 @@ function loadDbFromDisk() {
         for (const [tok, s] of data.userAuthSessions) {
           if (s.expiresAt > Date.now()) userAuthSessions.set(tok, s);
         }
+      }
+      if (Array.isArray(data.familyMembers)) {
+        for (const [id, f] of data.familyMembers) familyMembers.set(id, f);
+      }
+      if (Array.isArray(data.familyAuditLogs)) {
+        for (const [id, a] of data.familyAuditLogs) familyAuditLogs.set(id, a);
       }
     }
   } catch {
@@ -450,6 +470,82 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   }
 });
 
+// 3b. Email Login or Auto-Register (/api/auth/email-login)
+app.post('/api/auth/email-login', (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    let foundUser: UserRecord | null = null;
+
+    for (const u of users.values()) {
+      if (u.email?.toLowerCase() === cleanEmail) {
+        foundUser = u;
+        break;
+      }
+    }
+
+    if (!foundUser) {
+      // Auto-create account for seamless local login
+      const userId = 'usr_' + crypto.randomBytes(8).toString('hex');
+      foundUser = {
+        id: userId,
+        mobile: '',
+        email: cleanEmail,
+        passwordHash: hashPassword(password),
+        isVerified: true,
+        createdAt: Date.now(),
+      };
+      users.set(userId, foundUser);
+
+      const profileName = cleanEmail.split('@')[0];
+      const newProfile: UserProfileRecord = {
+        id: 'prof_' + crypto.randomBytes(8).toString('hex'),
+        userId,
+        fullName: profileName.charAt(0).toUpperCase() + profileName.slice(1),
+        mobile: '',
+        isMobileVerified: false,
+        email: cleanEmail,
+        isComplete: true,
+        updatedAt: Date.now(),
+      };
+      profiles.set(userId, newProfile);
+      userDocuments.set(userId, []);
+    } else {
+      const expectedHash = hashPassword(password);
+      if (foundUser.passwordHash && foundUser.passwordHash !== expectedHash) {
+        return res.status(401).json({ error: 'Incorrect password. Please try again.' });
+      }
+    }
+
+    const token = 'tok_' + crypto.randomBytes(32).toString('hex');
+    userAuthSessions.set(token, {
+      userId: foundUser.id,
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    });
+
+    saveDbToDisk();
+
+    const profile = profiles.get(foundUser.id);
+    return res.json({
+      success: true,
+      token,
+      user: {
+        id: foundUser.id,
+        mobile: foundUser.mobile,
+        email: foundUser.email,
+        isVerified: foundUser.isVerified,
+      },
+      profile,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Email login failed: ' + err.message });
+  }
+});
+
 // Quick Dev Login for testing fresh user vs demo user
 app.post('/api/auth/dev-quick-login', (req: Request, res: Response) => {
   try {
@@ -702,31 +798,45 @@ app.put('/api/profile', authenticateUser, (req: Request, res: Response) => {
     const {
       fullName,
       dob,
+      age,
       gender,
       email,
+      avatarUrl,
       emergencyContactName,
       emergencyContactPhone,
       preferredLanguage,
       bloodGroup,
+      hasHighBp,
+      hasDiabetes,
+      latestBp,
+      latestBloodSugar,
+      allergiesSummary,
+      currentMedicinesSummary,
     } = req.body;
 
     if (fullName !== undefined) profile.fullName = String(fullName).trim();
     if (dob !== undefined) profile.dob = String(dob).trim();
+    if (age !== undefined) profile.age = age;
     if (gender !== undefined) profile.gender = String(gender).trim();
     if (email !== undefined) profile.email = String(email).trim();
+    if (avatarUrl !== undefined) profile.avatarUrl = String(avatarUrl).trim();
     if (emergencyContactName !== undefined) profile.emergencyContactName = String(emergencyContactName).trim();
     if (emergencyContactPhone !== undefined) profile.emergencyContactPhone = String(emergencyContactPhone).trim();
     if (preferredLanguage !== undefined) profile.preferredLanguage = String(preferredLanguage).trim();
     if (bloodGroup !== undefined) profile.bloodGroup = String(bloodGroup).trim();
+    if (hasHighBp !== undefined) profile.hasHighBp = Boolean(hasHighBp);
+    if (hasDiabetes !== undefined) profile.hasDiabetes = Boolean(hasDiabetes);
+    if (latestBp !== undefined) profile.latestBp = String(latestBp).trim();
+    if (latestBloodSugar !== undefined) profile.latestBloodSugar = String(latestBloodSugar).trim();
+    if (allergiesSummary !== undefined) profile.allergiesSummary = String(allergiesSummary).trim();
+    if (currentMedicinesSummary !== undefined) profile.currentMedicinesSummary = String(currentMedicinesSummary).trim();
 
-    // Sensitive change rule: user cannot arbitrarily change verified mobile without going through verification flow
-    // Mobile is retained as verified
-
-    // Check completion status
+    // Check completion status: requires full name, DOB or age, gender, blood group, emergency contact
     profile.isComplete = Boolean(
       profile.fullName &&
-      profile.dob &&
+      (profile.dob || profile.age) &&
       profile.gender &&
+      profile.bloodGroup &&
       profile.emergencyContactName &&
       profile.emergencyContactPhone
     );
@@ -748,33 +858,35 @@ app.put('/api/profile', authenticateUser, (req: Request, res: Response) => {
 // USER DOCUMENT REPOSITORY (STRICT ISOLATION)
 // ==========================================
 
-// 1. Get documents for current user ONLY
-app.get('/api/documents', authenticateUser, (req: Request, res: Response) => {
-  const user: UserRecord = (req as any).user;
-  const docs = userDocuments.get(user.id) || [];
+// 1. Get documents for current user
+app.get('/api/documents', optionalAuthenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord | undefined = (req as any).user;
+  const userId = user ? user.id : 'guest_user';
+  const docs = userDocuments.get(userId) || [];
   return res.json({ success: true, documents: docs, count: docs.length });
 });
 
 // 2. Upload / Save document for current user
-app.post('/api/documents', authenticateUser, (req: Request, res: Response) => {
+app.post('/api/documents', optionalAuthenticateUser, (req: Request, res: Response) => {
   try {
-    const user: UserRecord = (req as any).user;
+    const user: UserRecord | undefined = (req as any).user;
     const { document } = req.body;
 
     if (!document || !document.filename) {
       return res.status(400).json({ error: 'Valid document payload is required.' });
     }
 
-    const userDocs = userDocuments.get(user.id) || [];
+    const userId = user ? user.id : 'guest_user';
+    const userDocs = userDocuments.get(userId) || [];
     const newDoc: StoredDocument = {
       ...document,
       id: document.id || 'doc_' + Date.now(),
-      userId: user.id,
+      userId,
       uploadDate: document.uploadDate || new Date().toLocaleDateString('en-GB'),
     };
 
     userDocs.unshift(newDoc);
-    userDocuments.set(user.id, userDocs);
+    userDocuments.set(userId, userDocs);
     saveDbToDisk();
 
     return res.status(201).json({ success: true, document: newDoc });
@@ -783,12 +895,13 @@ app.post('/api/documents', authenticateUser, (req: Request, res: Response) => {
   }
 });
 
-// 3. Delete document for current user (Enforces server-side ownership)
-app.delete('/api/documents/:id', authenticateUser, (req: Request, res: Response) => {
-  const user: UserRecord = (req as any).user;
+// 3. Delete document for current user
+app.delete('/api/documents/:id', optionalAuthenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord | undefined = (req as any).user;
+  const userId = user ? user.id : 'guest_user';
   const docId = req.params.id;
 
-  const docs = userDocuments.get(user.id) || [];
+  const docs = userDocuments.get(userId) || [];
   const initialLength = docs.length;
   const filtered = docs.filter((d) => d.id !== docId);
 
@@ -796,19 +909,43 @@ app.delete('/api/documents/:id', authenticateUser, (req: Request, res: Response)
     return res.status(404).json({ error: 'Document not found or does not belong to your account.' });
   }
 
-  userDocuments.set(user.id, filtered);
+  userDocuments.set(userId, filtered);
   saveDbToDisk();
 
   return res.json({ success: true, message: 'Document deleted successfully.' });
 });
 
+// Universal OCR & Document Processing Endpoint (Strict Provenance & Zero-Hallucination)
+app.post('/api/ocr/process', optionalAuthenticateUser, async (req: Request, res: Response) => {
+  try {
+    const { filename = 'document.pdf', fileData, mimeType, fileSize, documentId } = req.body;
+    const user: UserRecord | undefined = (req as any).user;
+    const userId = user ? user.id : 'guest_user';
+
+    const result = await processDocumentUniversal({
+      filename,
+      fileData,
+      mimeType,
+      fileSize,
+      documentId,
+      userId,
+    });
+
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Universal document processing failed: ' + err.message });
+  }
+});
+
+
 // 4. Update extracted entity status in a document
-app.put('/api/documents/:docId/entity', authenticateUser, (req: Request, res: Response) => {
-  const user: UserRecord = (req as any).user;
+app.put('/api/documents/:docId/entity', optionalAuthenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord | undefined = (req as any).user;
+  const userId = user ? user.id : 'guest_user';
   const { docId } = req.params;
   const { entityId, status, newValue } = req.body;
 
-  const docs = userDocuments.get(user.id) || [];
+  const docs = userDocuments.get(userId) || [];
   const targetDoc = docs.find((d) => d.id === docId);
 
   if (!targetDoc) {
@@ -823,16 +960,22 @@ app.put('/api/documents/:docId/entity', authenticateUser, (req: Request, res: Re
   ent.status = status;
   if (newValue !== undefined) ent.value = newValue;
 
+  // Auto-mark targetDoc as Confirmed if any entity is Confirmed or Edited
+  if (status === 'Confirmed' || status === 'Edited') {
+    targetDoc.status = 'Confirmed';
+  }
+
   saveDbToDisk();
   return res.json({ success: true, document: targetDoc });
 });
 
-// 5. Confirm all entities in a document
-app.post('/api/documents/:docId/confirm-all', authenticateUser, (req: Request, res: Response) => {
-  const user: UserRecord = (req as any).user;
+// 5. Confirm all entities in a document (preserves user-rejected findings)
+app.post('/api/documents/:docId/confirm-all', optionalAuthenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord | undefined = (req as any).user;
+  const userId = user ? user.id : 'guest_user';
   const { docId } = req.params;
 
-  const docs = userDocuments.get(user.id) || [];
+  const docs = userDocuments.get(userId) || [];
   const targetDoc = docs.find((d) => d.id === docId);
 
   if (!targetDoc) {
@@ -842,11 +985,92 @@ app.post('/api/documents/:docId/confirm-all', authenticateUser, (req: Request, r
   targetDoc.status = 'Confirmed';
   targetDoc.extractedEntities = targetDoc.extractedEntities.map((ent: any) => ({
     ...ent,
-    status: 'Confirmed',
+    status: ent.status === 'Rejected' ? 'Rejected' : 'Confirmed',
   }));
 
   saveDbToDisk();
   return res.json({ success: true, document: targetDoc });
+});
+
+// 6. Clinical & Medical Chat Assistant Endpoint (Ask Care)
+app.post('/api/chat/ask-ayu', optionalAuthenticateUser, async (req: Request, res: Response) => {
+  try {
+    const { query = '' } = req.body;
+    const user: UserRecord | undefined = (req as any).user;
+    const userId = user ? user.id : 'guest_user';
+    const docs = userDocuments.get(userId) || [];
+
+    const cleanQuery = String(query).trim();
+    if (!cleanQuery) {
+      return res.json({ answer: 'Please ask a health question or inquiry about your medical records.' });
+    }
+
+    // 1. Try Gemini AI if available
+    if (ai) {
+      try {
+        const confirmedEntities = docs.flatMap((d: any) =>
+          d.extractedEntities?.filter((e: any) => e.status === 'Confirmed') || []
+        );
+
+        const prompt = `You are Care, the clinical health assistant in the Take Care app.
+Answer this medical or health question: "${cleanQuery}"
+
+STRICT GUIDELINES:
+1. Answer in simple, plain, easy-to-understand terms that any patient can understand.
+2. Keep the answer SHORT, concise, and direct (at most 2-4 short bullet points or 2-3 sentences).
+3. If it's an emergency or first-aid topic (e.g. CPR, choking, severe bleeding, stroke, heart attack), give clear, step-by-step immediate actions and mention calling emergency services (112/911/108).
+4. If the user asks about their own medical records, use this verified patient context:
+${JSON.stringify(confirmedEntities.slice(0, 8))}
+5. For all general medical questions (symptoms, drugs, conditions, first aid), answer directly and clearly. DO NOT say "you have no documents uploaded" unless they explicitly ask what is in their uploaded documents.
+
+Answer:`;
+
+        const aiRes = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+        });
+
+        const answer = (aiRes.text || '').trim();
+        if (answer) {
+          const isEmergency = lower.includes('chest pain') || lower.includes('heart attack') || lower.includes('stroke') || lower.includes('cpr') || lower.includes('severe bleeding');
+          return res.json({ success: true, answer, reply: answer, isEmergency });
+        }
+      } catch (geminiErr: any) {
+        console.warn('Gemini chat fallback:', geminiErr?.message);
+      }
+    }
+
+    // 2. Comprehensive On-Device Clinical Knowledge Fallback (Short, Simple terms)
+    const lower = cleanQuery.toLowerCase();
+    let fallbackAnswer = '';
+    const isEmergency = lower.includes('chest pain') || lower.includes('heart attack') || lower.includes('stroke') || lower.includes('cpr');
+
+    if (lower.includes('cpr')) {
+      fallbackAnswer = `CPR (Cardiopulmonary Resuscitation) saves lives during sudden cardiac arrest:\n\n1. Call Emergency (112 / 108 / 102) immediately.\n2. Push hard & fast: Place hands in center of chest. Push down 2 inches at 100–120 beats/minute (rhythm of 'Stayin Alive').\n3. Don't stop: Continue firm chest compressions until emergency medical help arrives.`;
+    } else if (lower.includes('fever') || lower.includes('temperature')) {
+      fallbackAnswer = `Managing a fever:\n\n• Rest and drink plenty of fluids (water, ORS, soup).\n• Take Paracetamol (500–650 mg) after food if advised by a doctor.\n• Use a light damp sponge on forehead.\n• Seek immediate care if fever exceeds 103°F (39.4°C), lasts >3 days, or causes stiff neck.`;
+    } else if (lower.includes('headache')) {
+      fallbackAnswer = `Relieving a headache:\n\n• Drink a tall glass of water (dehydration is common cause).\n• Rest in a quiet, dark room.\n• Apply a cold compress to forehead or warm pack to neck.\n• If severe, sudden ('thunderclap'), or with vision loss, seek urgent medical care.`;
+    } else if (lower.includes('bp') || lower.includes('blood pressure') || lower.includes('hypertension')) {
+      fallbackAnswer = `High Blood Pressure (Hypertension):\n\n• Normal BP is below 120/80 mmHg.\n• Take prescribed medication (e.g., Telmisartan) daily in the morning.\n• Reduce salt (<1 tsp/day), avoid fried food, and walk 30 mins daily.\n• Monitor BP weekly and keep a log for your doctor.`;
+    } else if (lower.includes('sugar') || lower.includes('diabetes') || lower.includes('glucose')) {
+      fallbackAnswer = `Managing Blood Sugar & Diabetes:\n\n• Normal Fasting Glucose: 70–99 mg/dL; Target HbA1c: < 7.0%.\n• Take medicines (e.g. Metformin) with meals as directed.\n• Eat high-fiber foods, avoid sugary drinks, and take brisk walks.\n• Watch for hypoglycemia (shakiness, sweat): consume 15g quick sugar if low.`;
+    } else if (lower.includes('chok') || lower.includes('heimlich')) {
+      fallbackAnswer = `Choking First Aid (Heimlich Maneuver):\n\n1. Stand behind the person and lean them slightly forward.\n2. Make a fist just above their navel; grasp with other hand.\n3. Give 5 quick, upward abdominal thrusts.\n4. Alternate with 5 back blows until the airway clears. Call 112 if unresponsive.`;
+    } else if (lower.includes('burn')) {
+      fallbackAnswer = `First Aid for Minor Burns:\n\n1. Cool immediately: Run cool (not ice-cold) tap water over burn for 10–15 minutes.\n2. Do NOT apply ice, butter, or toothpaste.\n3. Cover loosely with a clean, non-stick sterile bandage.\n4. Seek urgent hospital care if burn is large, charred, or on face/hands.`;
+    } else if (lower.includes('cut') || lower.includes('bleed')) {
+      fallbackAnswer = `First Aid for Cuts & Bleeding:\n\n1. Apply firm, direct pressure with a clean cloth or gauze for 5 minutes.\n2. Keep the injured area elevated above heart level if possible.\n3. Wash gently with water once bleeding stops, apply antiseptic, and bandage.\n4. Seek stitches if cut is deep or gaping.`;
+    } else if (lower.includes('chest pain') || lower.includes('heart attack')) {
+      fallbackAnswer = `⚠️ EMERGENCY: Chest Pain / Heart Attack:\n\n1. Call Emergency Services (112 / 108 / 102) IMMEDIATELY.\n2. Have the person sit down, rest, and stay calm.\n3. Loosen tight clothing.\n4. If prescribed, take Nitroglycerin or chew Aspirin (300 mg) if no allergy.`;
+    } else {
+      fallbackAnswer = `Quick health advice for "${cleanQuery}":\n\n• Stay well hydrated with clean water and rest.\n• Follow your doctor's prescribed instructions and take medicines on time.\n• For severe, worsening, or persistent symptoms (>48 hours), please consult a licensed physician immediately.`;
+    }
+
+    return res.json({ success: true, answer: fallbackAnswer, reply: fallbackAnswer, isEmergency });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Chat service error: ' + err.message });
+  }
 });
 
 // ==========================================
@@ -854,10 +1078,11 @@ app.post('/api/documents/:docId/confirm-all', authenticateUser, (req: Request, r
 // ==========================================
 
 // Generate Health Summary strictly from confirmed records of the current user
-app.get('/api/summary', authenticateUser, (req: Request, res: Response) => {
-  const user: UserRecord = (req as any).user;
-  const profile = profiles.get(user.id);
-  const docs = userDocuments.get(user.id) || [];
+app.get('/api/summary', optionalAuthenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord | undefined = (req as any).user;
+  const userId = user ? user.id : 'guest_user';
+  const profile = profiles.get(userId);
+  const docs = userDocuments.get(userId) || [];
 
   const confirmedDocs = docs.filter((d) => d.status === 'Confirmed' || d.extractedEntities.some((e: any) => e.status === 'Confirmed'));
 
@@ -868,9 +1093,9 @@ app.get('/api/summary', authenticateUser, (req: Request, res: Response) => {
       hasSummary: false,
       totalDocuments: docs.length,
       patient: {
-        id: user.id,
+        id: userId,
         name: profile?.fullName || 'Valued Patient',
-        mobile: user.mobile,
+        mobile: user?.mobile || '',
         dob: profile?.dob || '',
         gender: profile?.gender || '',
         bloodGroup: profile?.bloodGroup || 'Not Documented',
@@ -909,9 +1134,9 @@ app.get('/api/summary', authenticateUser, (req: Request, res: Response) => {
     totalDocuments: docs.length,
     totalConfirmedDocs: confirmedDocs.length,
     patient: {
-      id: user.id,
+      id: userId,
       name: profile?.fullName || 'Valued Patient',
-      mobile: user.mobile,
+      mobile: user?.mobile || '',
       dob: profile?.dob || '',
       gender: profile?.gender || '',
       bloodGroup: profile?.bloodGroup || 'Not Documented',
@@ -1269,298 +1494,425 @@ app.post('/api/doctor/sign-note', authenticateDoctorToken, (req: Request, res: R
   });
 });
 
+
+
 // ==========================================
-// DOCUMENT PROCESSING & CLINICAL OCR PIPELINE
+// FAMILY HEALTH PROFILES & ACCESS API
 // ==========================================
 
-app.post('/api/ocr/process', optionalAuthenticateUser, async (req: Request, res: Response) => {
-  try {
-    const { filename, fileData, mimeType, fileSize, documentId: existingDocId } = req.body;
-    const authUser: UserRecord | undefined = (req as any).user;
+function logFamilyAudit(
+  actorUserId: string,
+  actorName: string,
+  targetProfileId: string,
+  targetProfileName: string,
+  action: 'invited' | 'consent_approved' | 'access_granted' | 'access_viewed' | 'access_changed' | 'access_revoked',
+  permissionLevel: 'complete' | 'emergency' | 'none',
+  details?: string
+) {
+  const logEntry = {
+    id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+    timestamp: Date.now(),
+    actorUserId,
+    actorName,
+    targetProfileId,
+    targetProfileName,
+    action,
+    permissionLevel,
+    details,
+  };
 
-    if (!filename) {
-      return res.status(400).json({ error: 'Filename is required.' });
-    }
+  const logs = familyAuditLogs.get(targetProfileId) || [];
+  logs.unshift(logEntry);
+  familyAuditLogs.set(targetProfileId, logs.slice(0, 50));
+  saveDbToDisk();
+}
 
-    const lowerName = filename.toLowerCase();
-    const isValidType =
-      lowerName.endsWith('.pdf') ||
-      lowerName.endsWith('.jpg') ||
-      lowerName.endsWith('.jpeg') ||
-      lowerName.endsWith('.png');
-    if (!isValidType) {
-      return res.status(400).json({
-        error: 'Unsupported file type. Please upload a PDF, JPG, or PNG document.',
-      });
-    }
+// 1. Get Family Members for Current User
+app.get('/api/family/members', authenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord = (req as any).user;
+  const userProfile = profiles.get(user.id);
+  const myMembers = familyMembers.get(user.id) || [];
 
-    if (fileSize && fileSize > 10 * 1024 * 1024) {
-      return res.status(413).json({
-        error: 'File size exceeds maximum allowable limit of 10 MB.',
-      });
-    }
-
-    const docId = existingDocId || 'doc_' + Date.now();
-
-    const pipelineSteps = [
-      { name: 'Uploaded', completed: true, timestamp: new Date().toISOString() },
-      { name: 'Validating', completed: true, timestamp: new Date().toISOString() },
-      { name: 'Preparing Pages', completed: true, timestamp: new Date().toISOString() },
-      { name: 'Extracting Text', completed: true, timestamp: new Date().toISOString() },
-      { name: 'Reading Medical Information', completed: true, timestamp: new Date().toISOString() },
-      { name: 'Validating Results', completed: true, timestamp: new Date().toISOString() },
-      { name: 'Awaiting Patient Review', completed: true, timestamp: new Date().toISOString() },
-    ];
-
-    let extractedLines: OcrLine[] = [];
-    let isDocBlurry = lowerName.includes('blur') || lowerName.includes('low');
-    let isDocRotated = lowerName.includes('rotat');
-    let orientationSkew = 0;
-
-    // STAGE 1: Extract Text via Multimodal OCR if Gemini is configured
-    if (ai && fileData) {
-      try {
-        const base64Data = fileData.replace(/^data:.*?;base64,/, '');
-        const cleanMime = mimeType || (lowerName.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
-
-        const ocrPrompt = `You are a precision optical character recognition (OCR) engine for Take Care.
-Extract every line of text verbatim from this medical document page.
-Do not interpret, diagnose, or summarize. Only transcribe visible text lines with coordinates.
-For each line provide:
-- "id": "L1", "L2", "L3"... in top-to-bottom reading order
-- "page": 1
-- "text": exact characters as printed
-- "bbox": bounding box { "ymin": 0-1000, "xmin": 0-1000, "ymax": 0-1000, "xmax": 0-1000 }
-- "ocrConfidence": 0.0 to 1.0
-
-Return valid JSON adhering to:
-{
-  "lines": [
-    { "id": "L1", "page": 1, "text": "string", "bbox": { "ymin": 100, "xmin": 50, "ymax": 130, "xmax": 600 }, "ocrConfidence": 0.95 }
-  ],
-  "isBlurryOrLowQuality": boolean,
-  "detectedOrientationSkew": number
-}`;
-
-        const ocrResponse = await ai.models.generateContent({
-          model: 'gemini-3.8-flash',
-          contents: [
-            {
-              inlineData: {
-                data: base64Data,
-                mimeType: cleanMime,
-              },
-            },
-            {
-              text: ocrPrompt,
-            },
-          ],
-          config: {
-            responseMimeType: 'application/json',
-          },
-        });
-
-        const ocrResult = JSON.parse(ocrResponse.text || '{}');
-        if (Array.isArray(ocrResult.lines)) {
-          extractedLines = ocrResult.lines;
-        }
-        if (ocrResult.isBlurryOrLowQuality) {
-          isDocBlurry = true;
-        }
-        if (ocrResult.detectedOrientationSkew) {
-          orientationSkew = ocrResult.detectedOrientationSkew;
-        }
-      } catch (ocrErr: any) {
-        console.warn('Multimodal OCR attempt notification:', ocrErr?.message);
-      }
-    }
-
-    // Compute readability score
-    const readability = computeReadability(extractedLines, { isBlurry: isDocBlurry });
-    const totalAlphaNum = countAlphanumericChars(extractedLines);
-
-    let analysisResult: any;
-
-    // RULE 2: No text, no facts (< 25 alphanumeric characters)
-    if (totalAlphaNum < 25) {
-      analysisResult = validateAndSanitizeExtraction(
-        { document: { type: isDocBlurry ? 'unreadable' : 'imaging_image_no_text' } },
-        extractedLines,
-        readability.score,
-        isDocBlurry
-      );
-    } else if (ai) {
-      // STAGE 2: Structured Clinical Extraction with strict A4 system prompt & A5 template
-      const linesPromptInput = extractedLines.map((l) => ({
-        id: l.id,
-        page: l.page || 1,
-        text: l.text,
-      }));
-
-      const userMessage = `Document id: ${docId}
-Filename: ${filename}
-Text source: ocr
-Readability score (0-1, from OCR quality): ${readability.score.toFixed(2)}
-
-LINES:
-${JSON.stringify(linesPromptInput, null, 2)}`;
-
-      let rawModelOutput: any = null;
-      let attempt = 0;
-
-      while (attempt < 2 && !rawModelOutput) {
-        attempt++;
-        try {
-          const extractionResponse = await ai.models.generateContent({
-            model: 'gemini-3.8-flash',
-            contents: userMessage,
-            config: {
-              systemInstruction: EXTRACTION_SYSTEM_PROMPT,
-              responseMimeType: 'application/json',
-              temperature: 0,
-            },
-          });
-
-          rawModelOutput = JSON.parse(extractionResponse.text || '{}');
-        } catch (genErr) {
-          if (attempt >= 2) {
-            console.error('Failed to parse structured extraction after 2 attempts:', genErr);
-          }
-        }
-      }
-
-      if (!rawModelOutput) {
-        // Rule 9: If model fails, show error state with Retry button; NEVER fall back to sample data!
-        return res.status(502).json({
-          success: false,
-          error: 'Model extraction failed. Please click Retry to reprocess.',
-          canRetry: true,
+  const sharedWithMe: any[] = [];
+  for (const [ownerId, members] of familyMembers.entries()) {
+    if (ownerId === user.id) continue;
+    for (const m of members) {
+      if ((m.targetUserId === user.id || m.mobile === user.mobile) && m.permissionLevel !== 'none') {
+        const ownerProf = profiles.get(ownerId);
+        sharedWithMe.push({
+          ...m,
+          ownerName: ownerProf?.fullName || 'Family Member',
+          ownerMobile: ownerProf?.mobile,
+          isSharedWithMe: true,
         });
       }
-
-      // STAGE 3: Run A7 Code Validators
-      analysisResult = validateAndSanitizeExtraction(
-        rawModelOutput,
-        extractedLines,
-        readability.score,
-        isDocBlurry
-      );
-    } else {
-      // If AI is unavailable and not enough text, return safe empty result
-      analysisResult = validateAndSanitizeExtraction(
-        { document: { type: 'unreadable' } },
-        extractedLines,
-        readability.score,
-        true
-      );
     }
+  }
 
-    // Convert validated facts to MedicalEntity schema for backward compatibility
-    const compatibleEntities = (analysisResult.facts || []).map((fact: any, idx: number) => {
-      const secondaryItems = [fact.dose, fact.frequency, fact.duration, fact.instructions].filter(Boolean);
-      return {
-        id: fact.id || `ent_${docId}_${idx}`,
-        category: fact.category,
-        title: fact.label,
-        value: fact.value || fact.label,
-        secondaryValue: secondaryItems.length > 0 ? secondaryItems.join(' • ') : undefined,
-        details: fact.evidence_quote ? `Source quote: "${fact.evidence_quote}"` : undefined,
-        confidence: Math.round(readability.score * 100),
-        sourceDoc: filename,
-        pageNumber: fact.page || 1,
-        status: fact.status || 'Extracted',
-        isHandwritten: false,
-        box: fact.bbox,
-        evidence_quote: fact.evidence_quote,
-        evidence_line_ids: fact.evidence_line_ids,
-        flag: fact.flag,
-      };
+  return res.json({
+    success: true,
+    members: myMembers,
+    sharedProfiles: sharedWithMe,
+    ownerProfile: userProfile || { fullName: 'My Profile', mobile: user.mobile },
+  });
+});
+
+// 2. Add / Invite Family Member
+app.post('/api/family/invite', authenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord = (req as any).user;
+  const userProfile = profiles.get(user.id);
+  const { fullName, relationship, mobile, dob, isMinor, guardianName, guardianConsentGiven } = req.body;
+
+  if (!fullName || typeof fullName !== 'string' || !fullName.trim()) {
+    return res.status(400).json({ error: 'Full name is required.' });
+  }
+
+  const validRelationships = ['Parent', 'Spouse', 'Child', 'Sibling', 'Other'];
+  if (!relationship || !validRelationships.includes(relationship)) {
+    return res.status(400).json({ error: 'Valid relationship must be selected.' });
+  }
+
+  const cleanMobile = (mobile || '').replace(/\D/g, '');
+  if (!cleanMobile || cleanMobile.length < 10) {
+    return res.status(400).json({ error: 'Valid 10-digit mobile number is required.' });
+  }
+
+  let targetUserId: string | undefined = undefined;
+  for (const [uId, u] of users.entries()) {
+    if (u.mobile === cleanMobile.slice(-10) || u.mobile === cleanMobile) {
+      targetUserId = uId;
+      break;
+    }
+  }
+
+  const isChild = !!isMinor || relationship === 'Child';
+  if (isChild && !guardianConsentGiven) {
+    return res.status(400).json({
+      error: 'Guardian authorization is legally required for minors or dependents before adding.',
     });
+  }
 
-    const qualityIssues: any[] = [];
-    if (isDocBlurry) {
-      qualityIssues.push({
-        type: 'blur',
-        severity: 'error',
-        message: 'Motion blur or low sharpness detected',
-        recommendation: 'Check extracted findings carefully before confirming.',
+  const members = familyMembers.get(user.id) || [];
+  if (members.some((m) => m.mobile.replace(/\D/g, '').slice(-10) === cleanMobile.slice(-10))) {
+    return res.status(400).json({ error: 'A family member with this mobile number is already in your list.' });
+  }
+
+  const invitationCode = 'FAM-' + Math.floor(100000 + Math.random() * 900000);
+  const newMember = {
+    id: 'fam_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+    ownerUserId: user.id,
+    targetUserId,
+    fullName: fullName.trim(),
+    relationship,
+    mobile: cleanMobile.slice(-10),
+    dob: dob || undefined,
+    isMinor: isChild,
+    guardianName: isChild ? (guardianName || userProfile?.fullName || 'Legal Guardian') : undefined,
+    guardianConsentGiven: isChild ? true : false,
+    permissionLevel: 'none',
+    status: isChild ? 'active' : 'pending_consent',
+    invitationCode,
+    isOwner: false,
+  };
+
+  members.push(newMember);
+  familyMembers.set(user.id, members);
+  saveDbToDisk();
+
+  logFamilyAudit(
+    user.id,
+    userProfile?.fullName || 'Account Owner',
+    newMember.id,
+    newMember.fullName,
+    'invited',
+    'none',
+    `Invited ${newMember.fullName} as ${newMember.relationship}. Code: ${invitationCode}`
+  );
+
+  return res.json({
+    success: true,
+    member: newMember,
+    invitationCode,
+    message: isChild
+      ? 'Child profile registered with guardian authorization.'
+      : `Invitation created for ${newMember.fullName}. Share verification code ${invitationCode} for consent.`,
+  });
+});
+
+// 3. Grant or Update Permission for a Family Member
+app.post('/api/family/grant-access', authenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord = (req as any).user;
+  const userProfile = profiles.get(user.id);
+  const { memberId, permissionLevel, duration } = req.body;
+
+  if (!memberId || !permissionLevel || !['complete', 'emergency', 'none'].includes(permissionLevel)) {
+    return res.status(400).json({ error: 'Valid memberId and permissionLevel are required.' });
+  }
+
+  const members = familyMembers.get(user.id) || [];
+  const member = members.find((m) => m.id === memberId);
+  if (!member) {
+    return res.status(404).json({ error: 'Family member profile not found.' });
+  }
+
+  let expiresAt: number | undefined = undefined;
+  if (duration === '30d') expiresAt = Date.now() + 30 * 24 * 3600 * 1000;
+  else if (duration === '90d') expiresAt = Date.now() + 90 * 24 * 3600 * 1000;
+  else if (duration === '1y') expiresAt = Date.now() + 365 * 24 * 3600 * 1000;
+
+  member.permissionLevel = permissionLevel;
+  member.status = 'active';
+  member.grantedAt = Date.now();
+  member.expiresAt = expiresAt;
+  saveDbToDisk();
+
+  logFamilyAudit(
+    user.id,
+    userProfile?.fullName || 'Account Owner',
+    member.id,
+    member.fullName,
+    permissionLevel === 'none' ? 'access_revoked' : 'access_granted',
+    permissionLevel,
+    `Granted ${permissionLevel.toUpperCase()} access${expiresAt ? ` expiring in ${duration}` : ' (No Expiry)'}.`
+  );
+
+  return res.json({
+    success: true,
+    member,
+    message: `Health access granted: ${permissionLevel.toUpperCase()} level.`,
+  });
+});
+
+// 4. Revoke Access for a Family Member
+app.post('/api/family/revoke-access', authenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord = (req as any).user;
+  const userProfile = profiles.get(user.id);
+  const { memberId } = req.body;
+
+  const members = familyMembers.get(user.id) || [];
+  const member = members.find((m) => m.id === memberId);
+  if (!member) {
+    return res.status(404).json({ error: 'Family member profile not found.' });
+  }
+
+  member.permissionLevel = 'none';
+  member.status = 'revoked';
+  saveDbToDisk();
+
+  logFamilyAudit(
+    user.id,
+    userProfile?.fullName || 'Account Owner',
+    member.id,
+    member.fullName,
+    'access_revoked',
+    'none',
+    `Access completely revoked on backend for ${member.fullName}.`
+  );
+
+  return res.json({
+    success: true,
+    member,
+    message: `Access revoked for ${member.fullName}.`,
+  });
+});
+
+// 5. Delete Family Member link
+app.delete('/api/family/member/:id', authenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord = (req as any).user;
+  const memberId = req.params.id;
+
+  const members = familyMembers.get(user.id) || [];
+  const updated = members.filter((m) => m.id !== memberId);
+  familyMembers.set(user.id, updated);
+  saveDbToDisk();
+
+  return res.json({ success: true, message: 'Family member removed.' });
+});
+
+// 6. Accept Family Invitation & Consent
+app.post('/api/family/accept-invite', authenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord = (req as any).user;
+  const userProfile = profiles.get(user.id);
+  const { invitationCode } = req.body;
+
+  if (!invitationCode || typeof invitationCode !== 'string') {
+    return res.status(400).json({ error: 'Invitation code is required.' });
+  }
+
+  let matchedMember: any = null;
+  let ownerIdMatched: string | null = null;
+
+  for (const [ownerId, members] of familyMembers.entries()) {
+    const found = members.find(
+      (m) =>
+        m.invitationCode?.toUpperCase() === invitationCode.trim().toUpperCase() ||
+        (m.mobile === user.mobile && m.status === 'pending_consent')
+    );
+    if (found) {
+      matchedMember = found;
+      ownerIdMatched = ownerId;
+      break;
+    }
+  }
+
+  if (!matchedMember || !ownerIdMatched) {
+    return res.status(404).json({ error: 'Invalid or expired invitation code.' });
+  }
+
+  matchedMember.targetUserId = user.id;
+  matchedMember.status = 'active';
+  saveDbToDisk();
+
+  logFamilyAudit(
+    user.id,
+    userProfile?.fullName || user.mobile,
+    matchedMember.id,
+    matchedMember.fullName,
+    'consent_approved',
+    matchedMember.permissionLevel,
+    `Accepted family invitation and granted identity consent.`
+  );
+
+  return res.json({
+    success: true,
+    member: matchedMember,
+    message: 'Family profile successfully linked with verified consent!',
+  });
+});
+
+// 7. Strictly Authorized Health Summary & Document Retrieval for Family Profile
+app.get('/api/family/profile-summary/:memberId', authenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord = (req as any).user;
+  const userProfile = profiles.get(user.id);
+  const memberId = req.params.memberId;
+
+  let memberObj: any = null;
+  let profileOwnerId: string | null = null;
+
+  for (const [ownerId, members] of familyMembers.entries()) {
+    const found = members.find((m) => m.id === memberId);
+    if (found) {
+      memberObj = found;
+      profileOwnerId = ownerId;
+      break;
+    }
+  }
+
+  const isSelf = memberId === 'self' || memberId === user.id;
+
+  if (!memberObj && !isSelf) {
+    return res.status(404).json({ error: 'Family profile not found.' });
+  }
+
+  let authorizedLevel: 'complete' | 'emergency' = 'complete';
+
+  if (!isSelf) {
+    const isOwner = profileOwnerId === user.id;
+    const isTarget = memberObj.targetUserId === user.id;
+
+    if (!isOwner && !isTarget) {
+      return res.status(403).json({ error: 'Access Denied: You are not authorized to view this family profile.' });
+    }
+
+    if (memberObj.status === 'revoked') {
+      return res.status(403).json({ error: 'Access Revoked: Health access to this profile has been revoked.' });
+    }
+
+    if (memberObj.expiresAt && Date.now() > memberObj.expiresAt) {
+      return res.status(403).json({ error: 'Access Expired: The permission window for this profile has ended.' });
+    }
+
+    if (memberObj.permissionLevel === 'none') {
+      return res.status(403).json({ error: 'No Permission: The profile owner has not granted summary access.' });
+    }
+
+    authorizedLevel = memberObj.permissionLevel;
+  }
+
+  const targetDataUserId = isSelf
+    ? user.id
+    : (memberObj.targetUserId || memberObj.id);
+
+  const docs = userDocuments.get(targetDataUserId) || [];
+  const targetProf: any = isSelf
+    ? userProfile
+    : (profiles.get(targetDataUserId) || {
+        fullName: memberObj.fullName,
+        mobile: memberObj.mobile,
+        dob: memberObj.dob,
+        bloodGroup: undefined,
+        emergencyContactName: undefined,
+        emergencyContactPhone: undefined,
       });
-    }
-    if (isDocRotated || orientationSkew !== 0) {
-      qualityIssues.push({
-        type: 'rotation',
-        severity: 'warning',
-        message: 'Orientation skew detected & deskewed',
-        recommendation: 'Document oriented upright.',
-        autoResolved: true,
-      });
-    }
 
-    // Determine category from classified document type
-    let docCategory: 'prescription' | 'lab' | 'discharge' | 'surgery' | 'scan' | 'other' = 'other';
-    const classification = analysisResult.document.type;
-    if (classification === 'prescription') docCategory = 'prescription';
-    else if (classification === 'lab_report') docCategory = 'lab';
-    else if (classification === 'discharge_summary') docCategory = 'discharge';
-    else if (classification === 'operation_note') docCategory = 'surgery';
-    else if (classification === 'imaging_image_no_text' || classification === 'imaging_report') docCategory = 'scan';
+  const allEntities = docs.flatMap((d) => d.extractedEntities || []);
 
-    // If authenticated, persist to user documents
-    if (authUser) {
-      const userDocs = userDocuments.get(authUser.id) || [];
-      const existingIndex = userDocs.findIndex((d) => d.id === docId || d.filename === filename);
+  if (authorizedLevel === 'emergency') {
+    const allergies = allEntities.filter((e) => e.category === 'allergy' && e.status !== 'Rejected');
+    const medications = allEntities.filter((e) => e.category === 'medication' && e.status === 'Confirmed');
+    const conditions = allEntities.filter((e) => e.category === 'condition' && e.status === 'Confirmed');
 
-      const storedDoc: StoredDocument = {
-        id: docId,
-        userId: authUser.id,
-        filename,
-        fileType: lowerName.endsWith('.pdf') ? 'pdf' : 'jpg',
-        category: docCategory,
-        uploadDate: new Date().toLocaleDateString('en-GB'),
-        fileSize: fileSize ? (fileSize / (1024 * 1024)).toFixed(1) + ' MB' : '1.5 MB',
-        pageCount: 1,
-        currentPage: 1,
-        previewUrl: fileData || '',
-        originalUrl: fileData || '',
-        status: analysisResult.is_image_only ? 'Confirmed' : 'Awaiting Patient Review',
-        ocrConfidence: Math.round(readability.score * 100),
-        rawText: extractedLines.map((l) => l.text).join('\n') || `[Image only: ${filename}]`,
-        extractedEntities: compatibleEntities,
-        qualityIssues,
-        isUserUploaded: true,
-        rotation: orientationSkew,
-      };
-
-      if (existingIndex >= 0) {
-        // Update existing document (idempotent, does not duplicate count)
-        userDocs[existingIndex] = storedDoc;
-      } else {
-        // Add new document
-        userDocs.unshift(storedDoc);
-      }
-      userDocuments.set(authUser.id, userDocs);
-      saveDbToDisk();
-    }
+    logFamilyAudit(
+      user.id,
+      userProfile?.fullName || 'Authorized Member',
+      memberId,
+      targetProf?.fullName || 'Family Member',
+      'access_viewed',
+      'emergency',
+      `Emergency summary accessed by ${userProfile?.fullName || user.mobile}.`
+    );
 
     return res.json({
       success: true,
-      documentId: docId,
-      pipelineSteps,
-      extractionMode: ai ? 'gemini-3.8-flash (Part A Contract)' : 'offline-validated',
-      ocrConfidence: Math.round(readability.score * 100),
-      readabilityScore: readability.score,
-      readabilityLabel: readability.label,
-      isBlurryOrLowQuality: isDocBlurry,
-      lines: extractedLines,
-      analysis: analysisResult,
-      rawText: extractedLines.map((l) => l.text).join('\n'),
-      entities: compatibleEntities,
-      qualityIssues,
-      isImageOnly: analysisResult.is_image_only,
+      profile: targetProf,
+      permissionLevel: 'emergency',
+      status: memberObj?.status || 'active',
+      expiresAt: memberObj?.expiresAt,
+      isEmergencyOnly: true,
+      summary: {
+        fullName: targetProf?.fullName,
+        mobile: targetProf?.mobile,
+        dob: targetProf?.dob,
+        bloodGroup: targetProf?.bloodGroup || 'Not Documented',
+        emergencyContact: targetProf?.emergencyContactName
+          ? `${targetProf.emergencyContactName} (${targetProf.emergencyContactPhone || ''})`
+          : undefined,
+        allergies,
+        medications,
+        conditions,
+      },
+      documentsCount: docs.length,
+      documents: [],
     });
-  } catch (err: any) {
-    return res.status(500).json({ error: 'OCR Processing failed: ' + err.message });
   }
+
+  logFamilyAudit(
+    user.id,
+    userProfile?.fullName || 'Authorized Member',
+    memberId,
+    targetProf?.fullName || 'Family Member',
+    'access_viewed',
+    'complete',
+    `Complete health summary accessed by ${userProfile?.fullName || user.mobile}.`
+  );
+
+  return res.json({
+    success: true,
+    profile: targetProf,
+    permissionLevel: 'complete',
+    status: memberObj?.status || 'active',
+    expiresAt: memberObj?.expiresAt,
+    isEmergencyOnly: false,
+    documents: docs,
+    documentsCount: docs.length,
+  });
+});
+
+// 8. Audit logs for current profile
+app.get('/api/family/audit-logs', authenticateUser, (req: Request, res: Response) => {
+  const user: UserRecord = (req as any).user;
+  const logs = familyAuditLogs.get(user.id) || [];
+  return res.json({ success: true, logs });
 });
 
 // Automated Regression Suite API endpoint (Part A Section A10)
@@ -1580,60 +1932,246 @@ app.get('/api/test/regression-suite', (_req: Request, res: Response) => {
   }
 });
 
-// Ask Ayu Health Assistant Chat Endpoint (Powered by Gemini)
-app.post('/api/chat/ask-ayu', optionalAuthenticateUser, async (req: Request, res: Response) => {
+// ==========================================
+// CLINICAL INJURY, WOUND & BURN VISION ANALYSIS
+// ==========================================
+
+app.post('/api/vision/analyze-injury', optionalAuthenticateUser, async (req: Request, res: Response) => {
   try {
-    const { query, patientName, documentsSummary, documentsCount } = req.body;
+    const { imageData, mimeType = 'image/jpeg', injuryType = 'visible_injury', userDescription = '' } = req.body;
+    const user: UserRecord | undefined = (req as any).user;
 
-    if (!query || typeof query !== 'string') {
-      return res.status(400).json({ error: 'Query text is required' });
+    if (!imageData || typeof imageData !== 'string') {
+      return res.status(400).json({ error: 'Image data is required for analysis.' });
     }
 
-    const lowerQuery = query.toLowerCase();
+    // Safety checks for immediate critical conditions
+    const descLower = String(userDescription).toLowerCase();
+    const hasEmergencyKeywords = descLower.includes('third degree') ||
+      descLower.includes('charred') ||
+      descLower.includes('unconscious') ||
+      descLower.includes('spurting') ||
+      descLower.includes('bone') ||
+      descLower.includes('chemical') ||
+      descLower.includes('electrical');
 
-    // Direct check for "Show my medical history" when no docs exist
-    if ((lowerQuery.includes('show my medical history') || lowerQuery.includes('medical history')) && (!documentsCount || documentsCount === 0)) {
-      return res.json({
-        reply: 'There is no diagnosis history documented in your records.',
-        source: 'clinical_records',
-      });
+    // 1. If Gemini AI is configured with vision capabilities
+    if (ai) {
+      try {
+        const base64Data = imageData.includes('base64,') ? imageData.split('base64,')[1] : imageData;
+        const prompt = `You are a clinical decision-support assistant evaluating a user-captured photo of a ${injuryType}.
+User stated context: "${userDescription || 'No description provided'}"
+
+MANDATORY CLINICAL GUARDRAILS:
+1. Provide INFORMATIONAL ASSISTANCE ONLY. Explicitly state this is NOT a definitive medical diagnosis.
+2. Under NO circumstances prescribe medications or specify pharmaceutical drug dosages.
+3. List 2-3 objective visual characteristics (e.g., superficial erythema, intact epidermis, minor skin break).
+4. State at least 2 limitations of photograph-based evaluation (e.g., cannot assess deep tissue viability, subcutaneous infection, or sensation).
+5. Provide standard non-pharmacological first aid (e.g., cool running water for 15-20 mins for burns; gentle soap and water plus clean sterile dressing for minor cuts).
+6. List red flag warning signs (e.g., expanding redness, purulent discharge, blistering > 2 inches, numbness, fever, full-thickness charring) that require IMMEDIATE in-person medical evaluation.
+
+Format output as JSON with this exact schema:
+{
+  "observations": ["string"],
+  "limitations": ["string"],
+  "immediateFirstAid": ["string"],
+  "emergencyWarningSigns": ["string"],
+  "requiresEmergencyCare": boolean,
+  "summaryNotes": "string"
+}`;
+
+        const model = 'gemini-2.5-flash';
+        const response = await ai.models.generateContent({
+          model,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: prompt },
+                {
+                  inlineData: {
+                    mimeType: mimeType || 'image/jpeg',
+                    data: base64Data,
+                  },
+                },
+              ],
+            },
+          ],
+        });
+
+        const textOutput = response.text || '';
+        let parsedResult: any = null;
+        try {
+          const jsonMatch = textOutput.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            parsedResult = JSON.parse(jsonMatch[0]);
+          }
+        } catch {}
+
+        if (parsedResult) {
+          return res.json({
+            success: true,
+            serviceConfigured: true,
+            id: 'inj_' + Date.now(),
+            injuryType,
+            observations: parsedResult.observations || ['Visual examination completed.'],
+            limitations: parsedResult.limitations || [
+              'Photographs cannot assess depth of tissue involvement or neurovascular status.',
+              'Lighting and resolution may mask signs of developing infection.',
+            ],
+            immediateFirstAid: parsedResult.immediateFirstAid || [
+              injuryType === 'burn'
+                ? 'Cool under gentle running tap water for 15-20 minutes. Do not use ice, butter, or paste.'
+                : 'Rinse with clean water, pat dry, and cover with a clean sterile dressing.',
+            ],
+            emergencyWarningSigns: parsedResult.emergencyWarningSigns || [
+              'Severe pain, rapid swelling, numbness, or spreading redness.',
+              'Signs of systemic illness, chills, or fever.',
+            ],
+            requiresEmergencyCare: hasEmergencyKeywords || Boolean(parsedResult.requiresEmergencyCare),
+            summaryNotes: parsedResult.summaryNotes || 'Clinical evaluation by a medical doctor is recommended for definitive management.',
+            timestamp: Date.now(),
+          });
+        }
+      } catch (geminiVisionErr: any) {
+        console.warn('Gemini vision analysis fallback:', geminiVisionErr?.message);
+      }
     }
 
-    if (!ai) {
-      return res.json({
-        reply: `I am Ayusha, your personal health assistant. ${
-          documentsCount && documentsCount > 0
-            ? `You have ${documentsCount} document(s) uploaded. I can help you explain your medicines and lab results.`
-            : 'You currently have no medical records uploaded. Tap "Scan medical documents" on your Home screen to add your first record.'
-        }`,
-      });
-    }
+    // 2. Clinically grounded fallback when AI vision service is unconfigured or unavailable
+    const firstAidGuidelines: Record<string, string[]> = {
+      burn: [
+        'Immediately cool the burn under cool (not ice-cold) running tap water for 15–20 minutes.',
+        'Do NOT apply ice, butter, oil, toothpaste, or home remedies — these trap heat.',
+        'Remove tight jewellery or clothing near the area before swelling begins.',
+        'Cover loosely with a clean, sterile, non-adherent dressing or plastic wrap.',
+      ],
+      wound: [
+        'Apply direct, firm pressure with a clean cloth or gauze for 5 minutes to halt bleeding.',
+        'Gently rinse the wound under clean drinking water to remove dirt. Avoid harsh hydrogen peroxide.',
+        'Apply a clean sterile dressing. Keep dry and change dressings daily.',
+      ],
+      cut: [
+        'Apply direct pressure to control bleeding; elevate the injured site above heart level.',
+        'Clean surrounding skin gently with mild soap and clean water.',
+        'Cover with a sterile adhesive bandage. Seek sutures within 6 hours if wound edges gape.',
+      ],
+      visible_injury: [
+        'Rest the injured area and avoid applying weight or friction.',
+        'Apply a cold compress wrapped in a towel for 10-15 minutes to reduce swelling.',
+        'Keep elevated if a limb is affected.',
+      ],
+    };
 
-    const contextPrompt = `You are Ayusha, a warm, helpful, and clinically responsible personal health assistant in the Ayu Health mobile app.
-The user is ${patientName || 'the patient'}.
-Their current documented records: ${
-      documentsSummary && documentsSummary.length > 0
-        ? JSON.stringify(documentsSummary)
-        : 'Zero documents uploaded yet.'
-    }
+    const redFlags: Record<string, string[]> = {
+      burn: [
+        'Burn is larger than the patient\'s palm or involves face, hands, feet, groin, or joints.',
+        'Skin appears charred black, white, leathery, or numb (third-degree sign).',
+        'Chemical or high-voltage electrical burns.',
+        'Blisters expand rapidly or develop pus/foul odour.',
+      ],
+      wound: [
+        'Bleeding spurts or does not stop after 10 minutes of continuous direct pressure.',
+        'Wound was caused by an animal bite, dirty metal, or contains deeply embedded debris.',
+        'Numbness, tingling, or weakness past the injury site.',
+        'Red streaks spreading outward from the wound or fever develops.',
+      ],
+      cut: [
+        'Deep laceration exposing fat, muscle, or bone.',
+        'Edges cannot be brought together easily.',
+        'Tetanus vaccination is out of date (>5 years for dirty wound).',
+      ],
+      visible_injury: [
+        'Inability to bear weight or visible deformity.',
+        'Severe throbbing pain unresponsive to rest.',
+        'Rapidly expanding bruise or pale/blue skin.',
+      ],
+    };
 
-User Question: "${query}"
-
-Guidelines:
-1. If the user asks about their history or records, base your answer strictly on the provided documents. If they have no records or no matching diagnosis, state: "There is no diagnosis history documented in your records."
-2. Provide helpful, easily understandable explanations of medical terms, dosage schedules, or lab tests.
-3. Remind the user that you assist with organizing and understanding records, while definitive clinical diagnoses come from their consulting doctor.
-4. Keep the tone empathetic, concise, and professional.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: contextPrompt,
+    return res.json({
+      success: true,
+      serviceConfigured: false,
+      id: 'inj_' + Date.now(),
+      injuryType,
+      notice: 'Automated vision model is operating in clinical guidance mode. An in-person medical evaluation is required for diagnosis.',
+      observations: [
+        `Image received for ${injuryType.replace('_', ' ')}.`,
+        'High-resolution visual inspection requires direct palpation and examination by a qualified practitioner.',
+      ],
+      limitations: [
+        'Photographic inspection cannot evaluate tissue perfusion, depth, or nerve function.',
+        'Visual estimates cannot replace a sterile physical wound check or bacterial culture.',
+      ],
+      immediateFirstAid: firstAidGuidelines[injuryType] || firstAidGuidelines['visible_injury'],
+      emergencyWarningSigns: redFlags[injuryType] || redFlags['visible_injury'],
+      requiresEmergencyCare: hasEmergencyKeywords,
+      summaryNotes: 'Informational assistance only. If you experience intense pain, dizziness, or spreading redness, visit the nearest emergency department.',
+      timestamp: Date.now(),
     });
-
-    const reply = response.text || 'I am here to help you understand your health records.';
-    return res.json({ reply });
   } catch (err: any) {
-    return res.status(500).json({ error: 'Failed to process assistant query: ' + err.message });
+    return res.status(500).json({ error: 'Injury image analysis failed: ' + err.message });
+  }
+});
+
+// Save analyzed injury photo to user's health vault with explicit consent
+app.post('/api/vision/save-injury-record', optionalAuthenticateUser, (req: Request, res: Response) => {
+  try {
+    const user: UserRecord | undefined = (req as any).user;
+    const userId = user ? user.id : 'guest_user';
+    const { injuryRecord, consentConfirmed } = req.body;
+
+    if (!consentConfirmed) {
+      return res.status(400).json({ error: 'Explicit patient consent is required to save injury photos to health records.' });
+    }
+
+    if (!injuryRecord) {
+      return res.status(400).json({ error: 'Valid injury record payload is required.' });
+    }
+
+    const docs = userDocuments.get(userId) || [];
+    const docId = 'doc_inj_' + Date.now();
+
+    const newDoc: StoredDocument = {
+      id: docId,
+      userId,
+      filename: `Injury-Assessment-${new Date().toISOString().slice(0, 10)}.jpg`,
+      fileType: 'jpg',
+      category: 'Diagnostic Image',
+      uploadDate: new Date().toLocaleDateString('en-GB'),
+      fileSize: '1.2 MB',
+      pageCount: 1,
+      currentPage: 1,
+      previewUrl: injuryRecord.previewUrl || '',
+      originalUrl: injuryRecord.previewUrl || '',
+      status: 'Patient confirmed',
+      ocrConfidence: 0.9,
+      rawText: `CLINICAL INJURY RECORD (${injuryRecord.injuryType || 'Visible injury'})\nRecorded: ${new Date().toLocaleString()}\nObservations: ${(injuryRecord.observations || []).join('; ')}\nFirst Aid Recommended: ${(injuryRecord.immediateFirstAid || []).join('; ')}`,
+      extractedEntities: [
+        {
+          id: 'ent_' + Date.now() + '_1',
+          category: 'condition',
+          title: 'Condition',
+          value: `${injuryRecord.injuryType ? injuryRecord.injuryType.charAt(0).toUpperCase() + injuryRecord.injuryType.slice(1) : 'Injury'} (Patient-reported)`,
+          sourceCitation: 'Patient photo assessment',
+          status: 'Patient confirmed',
+        },
+      ],
+      qualityIssues: [],
+      isUserUploaded: true,
+      rotation: 0,
+    };
+
+    docs.unshift(newDoc);
+    userDocuments.set(userId, docs);
+    saveDbToDisk();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Injury record successfully saved to your medical history.',
+      document: newDoc,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Failed to save injury record: ' + err.message });
   }
 });
 
