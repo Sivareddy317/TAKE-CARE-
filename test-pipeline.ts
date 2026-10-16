@@ -91,7 +91,7 @@ async function runUniversalPipelineTests(): Promise<TestResult[]> {
       [
         'Dr. Robert Miller, MD - Internal Medicine Clinic',
         'Date: 14 Oct 2026',
-        'Patient: Siva Reddy, 42M',
+        'Patient: Demo Patient, 42M',
         'Rx Prescribed Medications:',
         '1. Tab. Amoxicillin 500 mg - 1-0-1 after food for 7 days',
         '2. Tab. Paracetamol 650 mg - 1-0-0 SOS for pain',
@@ -616,7 +616,7 @@ async function runUniversalPipelineTests(): Promise<TestResult[]> {
     const datePdf = await createDigitalPdfBase64([
       [
         'Dr. V. Rao Clinic',
-        'Patient: Siva Reddy',
+        'Patient: Demo Patient',
         'Date of Consultation: 12-Jan-2025',
         'Report Printed: 15-Jan-2025',
         'Diagnosis: Essential Hypertension',
@@ -693,7 +693,7 @@ async function runUniversalPipelineTests(): Promise<TestResult[]> {
   {
     // Simulate backend authorization logic
     const requesterId = 'usr_stranger';
-    const profileOwnerId = 'usr_siva';
+    const profileOwnerId = 'usr_owner';
     const isAuthorized = requesterId === profileOwnerId;
 
     results.push({
@@ -768,8 +768,8 @@ async function runUniversalPipelineTests(): Promise<TestResult[]> {
   // ================================================================
   {
     // Test offline sync queue enqueue and deduplication
-    const id1 = offlineSync.enqueue('update_profile', { fullName: 'Siva Reddy', bloodGroup: 'O+' });
-    const id2 = offlineSync.enqueue('update_profile', { fullName: 'Siva Reddy', bloodGroup: 'O+' });
+    const id1 = offlineSync.enqueue('update_profile', { fullName: 'Demo Patient', bloodGroup: 'O+' });
+    const id2 = offlineSync.enqueue('update_profile', { fullName: 'Demo Patient', bloodGroup: 'O+' });
 
     // Deduplication should return the existing ID rather than enqueuing a duplicate
     const deduped = id1 === id2;
@@ -821,11 +821,11 @@ async function runUniversalPipelineTests(): Promise<TestResult[]> {
     const mockProfile: UserProfile = {
       id: 'prof_test',
       userId: 'usr_test',
-      fullName: 'Siva Reddy',
-      mobile: '9182302896',
+      fullName: 'Demo Patient',
+      mobile: '9876543210',
       bloodGroup: 'O+',
-      emergencyContactName: 'Ramesh Reddy',
-      emergencyContactPhone: '9876543210',
+      emergencyContactName: 'Emergency Contact',
+      emergencyContactPhone: '9876543211',
       isMobileVerified: true,
       isComplete: true,
       updatedAt: Date.now(),

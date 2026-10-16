@@ -92,7 +92,7 @@ export const AbdmView: React.FC = () => {
               type="text"
               readOnly
               disabled
-              value="sivaprasad@sbx"
+              value="patient@sbx"
               className="bg-transparent text-slate-600 text-xs font-mono w-full outline-none select-none cursor-not-allowed"
             />
             <span className="bg-slate-200 text-slate-700 text-[10px] font-bold px-1.5 py-0.5 rounded">

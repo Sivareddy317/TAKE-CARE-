@@ -87,7 +87,7 @@ export const AyuRegisterView: React.FC<AyuRegisterViewProps> = ({
               type="text"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              placeholder="e.g. Siva"
+              placeholder="Enter your first name"
               className="w-full px-4 py-3 bg-[#EFF1F4] rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-slate-300 transition"
               required
             />
@@ -102,7 +102,7 @@ export const AyuRegisterView: React.FC<AyuRegisterViewProps> = ({
               type="text"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              placeholder="e.g. Reddy"
+              placeholder="Enter your last name"
               className="w-full px-4 py-3 bg-[#EFF1F4] rounded-2xl text-slate-900 font-semibold text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-slate-300 transition"
             />
           </div>

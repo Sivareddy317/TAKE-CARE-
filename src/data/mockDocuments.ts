@@ -1,12 +1,12 @@
 import { ProcessedDocument, AcceptanceTestCase, PatientInfo } from '../types/clinical';
 
 export const CURRENT_PATIENT: PatientInfo = {
-  id: 'TC-2026-001',
-  name: 'Siva Prasad Reddy',
-  age: 21,
-  gender: 'Male',
-  bloodGroup: 'A+ Positive',
-  emergencyContact: 'Ramesh Reddy (Father, +91 98111 22334)',
+  id: 'TC-2026-DEMO',
+  name: 'Demo Patient (Synthetic)',
+  age: 28,
+  gender: 'Other',
+  bloodGroup: 'B+ Positive',
+  emergencyContact: 'Emergency Contact (+91 98765 00000)',
 };
 
 // SVG data URI generator for authentic looking Indian clinical documents
@@ -35,8 +35,8 @@ function createSvgDocUri(title: string, subtitle: string, bodyContent: string, i
       <!-- Patient Meta Ribbon -->
       <line x1="40" y1="105" x2="760" y2="105" stroke="#e2e8f0" stroke-width="1.5"/>
       <rect x="40" y="115" width="720" height="42" rx="6" fill="#f1f5f9"/>
-      <text x="55" y="141" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#334155">PATIENT: SIVA PRASAD REDDY (21Y / M)</text>
-      <text x="380" y="141" font-family="Arial, sans-serif" font-size="12" fill="#64748b">UHID: TC-2026-001</text>
+      <text x="55" y="141" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#334155">PATIENT: DEMO PATIENT (SYNTHETIC RECORD)</text>
+      <text x="380" y="141" font-family="Arial, sans-serif" font-size="12" fill="#64748b">UHID: TC-2026-DEMO</text>
       <text x="580" y="141" font-family="Arial, sans-serif" font-size="12" fill="#64748b">DATE: 12 OCT 2026</text>
       <line x1="40" y1="168" x2="760" y2="168" stroke="#cbd5e1" stroke-width="1"/>
 
@@ -180,7 +180,7 @@ export const PRELOADED_DOCUMENTS: ProcessedDocument[] = [
     status: 'Confirmed',
     ocrConfidence: 98,
     rotation: 0,
-    rawText: `CITY CLINICAL HEALTHCARE & ENT\nDr. K. Swaminathan, MD (Reg #48102)\nPATIENT: Siva Prasad Reddy (21Y / M) | UHID: TC-2026-001\nDate: 12 Oct 2026\n\nRx:\n1. Tab. Amlodipine 5 mg - 1 tab once daily post-breakfast x 30 days.\nIndication: Essential Hypertension.\n\nAllergies Recorded:\nDust Mites - Severe allergic rhinitis, morning nasal congestion, mild ocular pruritus.\nNo Known Drug Allergies (Penicillin, Sulfa, NSAIDs).\nOther allergies (food, latex, anesthesia) not documented.`,
+    rawText: `CITY CLINICAL HEALTHCARE & ENT\nDr. K. Swaminathan, MD (Reg #48102)\nPATIENT: Demo Patient (Synthetic Demo) | UHID: TC-2026-DEMO\nDate: 12 Oct 2026\n\nRx:\n1. Tab. Amlodipine 5 mg - 1 tab once daily post-breakfast x 30 days.\nIndication: Essential Hypertension.\n\nAllergies Recorded:\nDust Mites - Severe allergic rhinitis, morning nasal congestion, mild ocular pruritus.\nNo Known Drug Allergies (Penicillin, Sulfa, NSAIDs).\nOther allergies (food, latex, anesthesia) not documented.`,
     qualityIssues: [],
     extractedEntities: [
       {
@@ -225,7 +225,7 @@ export const PRELOADED_DOCUMENTS: ProcessedDocument[] = [
     status: 'Confirmed',
     ocrConfidence: 99,
     rotation: 0,
-    rawText: `METROPOLIS HEALTHCARE LABS\nPatient: Siva Prasad Reddy | TC-2026-001\nHbA1c: 6.8 % (Ref: 4.0 - 5.6 %) - Moderate Glycemic Control\nSerum Creatinine: 1.1 mg/dL (Ref: 0.7 - 1.3 mg/dL) - Normal Renal Clearance\nFasting Blood Glucose: 124 mg/dL (Ref: 70 - 99 mg/dL) - Elevated Fasting\nTotal Serum Cholesterol: 182 mg/dL (Ref: < 200 mg/dL)`,
+    rawText: `METROPOLIS HEALTHCARE LABS\nPatient: Demo Patient (Synthetic Demo) | TC-2026-DEMO\nHbA1c: 6.8 % (Ref: 4.0 - 5.6 %) - Moderate Glycemic Control\nSerum Creatinine: 1.1 mg/dL (Ref: 0.7 - 1.3 mg/dL) - Normal Renal Clearance\nFasting Blood Glucose: 124 mg/dL (Ref: 70 - 99 mg/dL) - Elevated Fasting\nTotal Serum Cholesterol: 182 mg/dL (Ref: < 200 mg/dL)`,
     qualityIssues: [],
     extractedEntities: [
       {
@@ -283,7 +283,7 @@ export const PRELOADED_DOCUMENTS: ProcessedDocument[] = [
     status: 'Confirmed',
     ocrConfidence: 95,
     rotation: 0,
-    rawText: `APOLLO HOSPITALS HYDERABAD\nDischarge Summary - Siva Prasad Reddy (TC-2026-001)\nDiagnosis: Type 2 Diabetes Mellitus, Essential Hypertension.\nMedication: Metformin Hydrochloride 500 mg Extended Release BD.\nDischarge Date: 08 Oct 2026`,
+    rawText: `APOLLO HOSPITALS HYDERABAD\nDischarge Summary - Demo Patient (Synthetic Demo) (TC-2026-DEMO)\nDiagnosis: Type 2 Diabetes Mellitus, Essential Hypertension.\nMedication: Metformin Hydrochloride 500 mg Extended Release BD.\nDischarge Date: 08 Oct 2026`,
     qualityIssues: [],
     extractedEntities: [
       {
