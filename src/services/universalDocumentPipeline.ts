@@ -510,9 +510,10 @@ export function classifyDocumentContent(
     doctor_note: {
       keywords: [
         'consultation note', 'clinical note', 'outpatient', 'subjective', 'objective',
-        'assessment', 'plan', 'chief complaint', 'dr.', 'advice:'
+        'assessment', 'plan', 'chief complaint', 'dr.', 'advice:', 'medical certificate',
+        'certificate', 'examined and treated', 'suffering from', 'advised rest', 'fit to resume'
       ],
-      weight: 0.9,
+      weight: 1.0,
     },
     ecg_report: {
       keywords: [
@@ -872,8 +873,8 @@ export function extractCandidateFieldsFromLines(
     }
   }
 
-  // E. Diagnoses across discharge summaries or doctor notes
-  if (docType === 'discharge_summary' || docType === 'doctor_note') {
+  // E. Diagnoses and clinical findings across discharge summaries, doctor notes, or medical certificates
+  if (docType === 'discharge_summary' || docType === 'doctor_note' || docType === 'other_medical') {
     for (const l of lines) {
       const lower = l.text.toLowerCase();
       if (lower.startsWith('diagnosis:') || lower.startsWith('final diagnosis:') || lower.startsWith('provisional diagnosis:')) {
@@ -901,6 +902,110 @@ export function extractCandidateFieldsFromLines(
           text: `Diagnosis: ${diagVal}`,
           evidence_line_ids: [l.id],
         });
+      } else if (lower.includes('suffering from') || lower.includes('diagnosed with')) {
+        const m = l.text.match(/(?:suffering from|diagnosed with)\s+([A-Za-z0-9\s,\-]+?)(?:,|\.|$)/i);
+        const condVal = m ? m[1].trim() : l.text.trim();
+        facts.push({
+          id: `fact_${documentId}_${l.id}_cond`,
+          category: 'condition',
+          label: 'Medical Condition',
+          value: condVal,
+          unit: null,
+          dose: null,
+          frequency: null,
+          duration: null,
+          instructions: null,
+          reference_range_printed: null,
+          flag: 'none_printed',
+          evidence_quote: l.text,
+          evidence_line_ids: [l.id],
+          status: 'AI_EXTRACTED',
+          page: l.page || 1,
+          bbox: l.bbox,
+        });
+        keyPoints.push({
+          kind: 'diagnosis',
+          text: `Condition: ${condVal}`,
+          evidence_line_ids: [l.id],
+        });
+      } else if (lower.includes('advised rest from') || lower.includes('rest from')) {
+        facts.push({
+          id: `fact_${documentId}_${l.id}_rest`,
+          category: 'follow_up',
+          label: 'Rest Period Advised',
+          value: l.text.trim(),
+          unit: null,
+          dose: null,
+          frequency: null,
+          duration: null,
+          instructions: null,
+          reference_range_printed: null,
+          flag: 'none_printed',
+          evidence_quote: l.text,
+          evidence_line_ids: [l.id],
+          status: 'AI_EXTRACTED',
+          page: l.page || 1,
+          bbox: l.bbox,
+        });
+      } else if (lower.includes('fit to resume')) {
+        facts.push({
+          id: `fact_${documentId}_${l.id}_fit`,
+          category: 'follow_up',
+          label: 'Fitness Status',
+          value: l.text.trim(),
+          unit: null,
+          dose: null,
+          frequency: null,
+          duration: null,
+          instructions: null,
+          reference_range_printed: null,
+          flag: 'none_printed',
+          evidence_quote: l.text,
+          evidence_line_ids: [l.id],
+          status: 'AI_EXTRACTED',
+          page: l.page || 1,
+          bbox: l.bbox,
+        });
+      } else if (lower.includes("doctor's name") || lower.startsWith('dr.')) {
+        const docName = l.text.includes(':') ? l.text.split(':')[1].trim() : l.text.trim();
+        facts.push({
+          id: `fact_${documentId}_${l.id}_doc`,
+          category: 'procedure',
+          label: 'Treating Physician',
+          value: docName,
+          unit: null,
+          dose: null,
+          frequency: null,
+          duration: null,
+          instructions: null,
+          reference_range_printed: null,
+          flag: 'none_printed',
+          evidence_quote: l.text,
+          evidence_line_ids: [l.id],
+          status: 'AI_EXTRACTED',
+          page: l.page || 1,
+          bbox: l.bbox,
+        });
+      } else if (lower.includes('hospital name') || lower.includes('clinic name')) {
+        const hospName = l.text.includes(':') ? l.text.split(':')[1].trim() : l.text.trim();
+        facts.push({
+          id: `fact_${documentId}_${l.id}_hosp`,
+          category: 'procedure',
+          label: 'Medical Facility',
+          value: hospName,
+          unit: null,
+          dose: null,
+          frequency: null,
+          duration: null,
+          instructions: null,
+          reference_range_printed: null,
+          flag: 'none_printed',
+          evidence_quote: l.text,
+          evidence_line_ids: [l.id],
+          status: 'AI_EXTRACTED',
+          page: l.page || 1,
+          bbox: l.bbox,
+        });
       }
     }
   }
@@ -919,6 +1024,11 @@ export async function processDocumentUniversal(params: {
   fileSize?: number;
   documentId?: string;
   userId?: string;
+  ocrLines?: OcrLine[];
+  rawText?: string;
+  suggestedType?: DocumentType;
+  additionalFacts?: ExtractedFact[];
+  additionalKeyPoints?: KeyPoint[];
 }): Promise<UniversalProcessingResult> {
   const documentId = params.documentId || 'doc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
   const uploadDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -962,10 +1072,11 @@ export async function processDocumentUniversal(params: {
   }
 
   const isPdf = validation.fileCategory === 'pdf';
-  let lines: OcrLine[] = [];
+  let lines: OcrLine[] = params.ocrLines && params.ocrLines.length > 0 ? [...params.ocrLines] : [];
   let pageCount = 1;
-  let fullRawText = '';
-  let extractionMethod: 'digital_pdf_stream' | 'multimodal_ai_vision' | 'raster_ocr' | 'image_inspection' = 'image_inspection';
+  let fullRawText = params.rawText || (lines.length > 0 ? lines.map((l) => l.text).join('\n') : '');
+  let extractionMethod: 'digital_pdf_stream' | 'multimodal_ai_vision' | 'raster_ocr' | 'image_inspection' =
+    lines.length > 0 ? 'multimodal_ai_vision' : 'image_inspection';
 
   // 2. Text Extraction Strategy
   if (isPdf && params.fileData && params.fileData.includes('base64,')) {
@@ -973,8 +1084,9 @@ export async function processDocumentUniversal(params: {
     try {
       const pdfBytes = base64ToUint8Array(params.fileData.split('base64,')[1]);
       const pdfExtraction = await extractDigitalPdfText(pdfBytes);
-      if (pdfExtraction.success) {
+      if (pdfExtraction.success && pdfExtraction.totalText.trim().length > 25) {
         pageCount = pdfExtraction.totalPages;
+        lines = [];
         for (const p of pdfExtraction.pages) {
           lines.push(...p.lines);
         }
@@ -1004,8 +1116,10 @@ export async function processDocumentUniversal(params: {
 
   // 4. Document Classification
   const classification = classifyDocumentContent(fullRawText, isImageOnly);
-  const documentType = classification.type;
-  const isUncertain = classification.isUncertain;
+  const documentType = (params.suggestedType && params.suggestedType !== 'uncertain' && params.suggestedType !== 'imaging_image_no_text')
+    ? params.suggestedType
+    : classification.type;
+  const isUncertain = classification.isUncertain && !params.suggestedType;
 
   // 5. Clinical Findings Extraction & Grounding
   let extractedFacts: ExtractedFact[] = [];
@@ -1015,6 +1129,53 @@ export async function processDocumentUniversal(params: {
   if (!isImageOnly && documentType !== 'imaging_image_no_text' && documentType !== 'unreadable') {
     const rawCandidateFields = extractCandidateFieldsFromLines(lines, documentType, params.filename, documentId);
 
+    // Merge any additional facts from multimodal AI, grounding each with matching OCR lines
+    const candidateFacts = [...rawCandidateFields.facts];
+    if (params.additionalFacts && params.additionalFacts.length > 0) {
+      for (const af of params.additionalFacts) {
+        if (!af.evidence_quote) continue;
+        const normQuote = af.evidence_quote.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const matchingLine = lines.find((l) => {
+          const normLine = l.text.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return normLine.includes(normQuote) || normQuote.includes(normLine);
+        }) || lines[0];
+
+        if (matchingLine) {
+          candidateFacts.push({
+            id: af.id || `fact_${documentId}_${matchingLine.id}_ai_${Math.random().toString(36).substring(2, 6)}`,
+            category: af.category,
+            label: af.label,
+            value: af.value,
+            unit: af.unit || null,
+            dose: af.dose || null,
+            frequency: af.frequency || null,
+            duration: af.duration || null,
+            instructions: af.instructions || null,
+            reference_range_printed: af.reference_range_printed || null,
+            flag: af.flag || 'none_printed',
+            evidence_quote: matchingLine.text,
+            evidence_line_ids: [matchingLine.id],
+            status: 'AI_EXTRACTED',
+            page: matchingLine.page || 1,
+            bbox: matchingLine.bbox,
+          });
+        }
+      }
+    }
+
+    const candidateKeyPoints = [...rawCandidateFields.keyPoints];
+    if (params.additionalKeyPoints && params.additionalKeyPoints.length > 0) {
+      for (const kp of params.additionalKeyPoints) {
+        if (kp.text) {
+          candidateKeyPoints.push({
+            kind: kp.kind || 'other',
+            text: kp.text,
+            evidence_line_ids: lines.slice(0, 1).map((l) => l.id),
+          });
+        }
+      }
+    }
+
     // Enforce A7 integrity validators
     const sanitizedOutput = validateAndSanitizeExtraction(
       {
@@ -1022,8 +1183,8 @@ export async function processDocumentUniversal(params: {
           type: documentType === 'uncertain' ? 'other_medical' : documentType,
           plain_summary: `Document: ${params.filename}`,
         },
-        facts: rawCandidateFields.facts,
-        key_points: rawCandidateFields.keyPoints,
+        facts: candidateFacts,
+        key_points: candidateKeyPoints,
         needs_review: rawCandidateFields.needsReview,
       },
       lines,
@@ -1035,8 +1196,8 @@ export async function processDocumentUniversal(params: {
     needsReview = sanitizedOutput.needs_review;
   }
 
-  // 6. Map to UI entities format
-  const entities = extractedFacts.map((fact) => ({
+  // 6. Map to UI entities format with deduplication
+  const rawEntities = extractedFacts.map((fact) => ({
     id: fact.id || `ent_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     category: fact.category === 'imaging_finding' ? 'procedure' : fact.category,
     title: fact.label,
@@ -1049,6 +1210,14 @@ export async function processDocumentUniversal(params: {
     status: 'Extracted',
     box: fact.bbox,
   }));
+
+  const seenEntitySignatures = new Set<string>();
+  const entities = rawEntities.filter((e) => {
+    const sig = `${e.category}|${e.value.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+    if (seenEntitySignatures.has(sig)) return false;
+    seenEntitySignatures.add(sig);
+    return true;
+  });
 
   // Document UI Category mapping
   let uiCategory: string = 'scan';

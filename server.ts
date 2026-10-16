@@ -14,7 +14,11 @@ import {
   OcrLine,
 } from './src/services/clinicalAnalysis';
 import { runAllRegressionTests } from './src/services/regressionRunner';
-import { processDocumentUniversal } from './src/services/universalDocumentPipeline';
+import {
+  processDocumentUniversal,
+  extractDigitalPdfText,
+  base64ToUint8Array,
+} from './src/services/universalDocumentPipeline';
 
 dotenv.config();
 
@@ -36,6 +40,32 @@ const ai = apiKey
       },
     })
   : null;
+
+// Resilient active Gemini models list with automatic fallback
+const ACTIVE_GEMINI_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-3.7-flash',
+  'gemini-3.8-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
+];
+
+async function generateGeminiContentWithFallback(contents: any) {
+  if (!ai) return null;
+  for (const model of ACTIVE_GEMINI_MODELS) {
+    try {
+      const res = await ai.models.generateContent({
+        model,
+        contents,
+      });
+      if (res && res.text) return res;
+    } catch (err: any) {
+      console.warn(`Gemini model ${model} fallback:`, err?.message || err);
+    }
+  }
+  return null;
+}
 
 // ==========================================
 // PERSISTENT MULTI-USER DATA STORE
@@ -922,6 +952,129 @@ app.post('/api/ocr/process', optionalAuthenticateUser, async (req: Request, res:
     const user: UserRecord | undefined = (req as any).user;
     const userId = user ? user.id : 'guest_user';
 
+    let ocrLines: any[] | undefined = undefined;
+    let suggestedType: any = undefined;
+    let additionalFacts: any[] | undefined = undefined;
+    let additionalKeyPoints: any[] | undefined = undefined;
+
+    // Check if document needs visual AI OCR (images or scanned PDFs without digital text streams)
+    const isImage =
+      (mimeType && mimeType.startsWith('image/')) ||
+      /\.(jpe?g|png|webp|bmp|gif|tiff?)$/i.test(filename);
+    const isPdf = filename.toLowerCase().endsWith('.pdf') || (mimeType && mimeType.includes('pdf'));
+
+    if (ai && fileData && fileData.includes('base64,')) {
+      const base64Data = fileData.split('base64,')[1];
+      const effectiveMime = mimeType || (isPdf ? 'application/pdf' : 'image/jpeg');
+
+      // For PDFs, quickly check if digital text stream already exists
+      let needsVision = isImage;
+      if (isPdf) {
+        try {
+          const pdfBytes = base64ToUint8Array(base64Data);
+          const pdfExt = await extractDigitalPdfText(pdfBytes);
+          if (!pdfExt.success || pdfExt.totalText.trim().length < 25) {
+            needsVision = true;
+          }
+        } catch {
+          needsVision = true;
+        }
+      }
+
+      if (needsVision) {
+        try {
+          const visionPrompt = `You are an expert clinical document OCR engine for a health records system.
+Carefully inspect this medical document, prescription, lab report, or medical certificate image.
+
+TASKS:
+1. Perform exact, line-by-line Optical Character Recognition (OCR). Transcribe all visible text exactly as printed/written, including headers, doctor names, patient names, dates, hospital addresses, diagnoses, medications, and instructions.
+2. Identify the clinical document type:
+   - "doctor_note" (Consultation note, medical certificate, sick leave certificate, fitness certificate, clinical referral)
+   - "prescription" (Medication prescription)
+   - "lab_report" (Diagnostic lab test panel)
+   - "discharge_summary" (Hospital inpatient discharge summary)
+   - "imaging_report" (Radiology report with findings/impression)
+   - "ecg_report" (ECG / EKG strip)
+   - "vaccination_record" (Immunization chart)
+   - "other_medical" (Other clinical form)
+   - "imaging_image_no_text" (ONLY if this is an image/photo of a raw X-ray film or scan with NO readable written text)
+3. Extract key clinical facts. Every fact MUST have an exact "evidence_quote" verbatim from the text:
+   - Conditions, illnesses, or diagnoses (category: "condition")
+   - Doctor name and qualifications (category: "procedure")
+   - Medical center, hospital, or clinic name (category: "procedure")
+   - Medical leave, rest advised, or fitness to resume dates (category: "follow_up")
+   - Medications prescribed with dosage & frequency (category: "medication")
+   - Lab test values and reference ranges (category: "lab")
+4. Provide key summary points for the patient.
+
+Format your response strictly as JSON:
+{
+  "documentType": "doctor_note",
+  "ocrLines": [
+    { "text": "Line 1 exact text" }
+  ],
+  "facts": [
+    {
+      "category": "condition",
+      "label": "Medical Condition",
+      "value": "Malaria",
+      "evidence_quote": "suffering from Maleria"
+    }
+  ],
+  "keyPoints": [
+    {
+      "kind": "diagnosis",
+      "text": "Diagnosed and treated for Malaria"
+    }
+  ]
+}`;
+
+          for (const model of ACTIVE_GEMINI_MODELS) {
+            try {
+              const aiRes = await ai.models.generateContent({
+                model,
+                contents: [
+                  {
+                    role: 'user',
+                    parts: [
+                      { text: visionPrompt },
+                      {
+                        inlineData: {
+                          mimeType: effectiveMime,
+                          data: base64Data,
+                        },
+                      },
+                    ],
+                  },
+                ],
+              });
+              const rawAiText = aiRes?.text || '';
+              const jsonMatch = rawAiText.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (Array.isArray(parsed.ocrLines) && parsed.ocrLines.length > 0) {
+                  ocrLines = parsed.ocrLines.map((l: any, idx: number) => ({
+                    id: 'L' + (idx + 1),
+                    page: 1,
+                    text: typeof l === 'string' ? l : l.text || '',
+                    ocrConfidence: 0.95,
+                  }));
+                }
+                if (parsed.documentType) suggestedType = parsed.documentType;
+                if (Array.isArray(parsed.facts)) additionalFacts = parsed.facts;
+                if (Array.isArray(parsed.keyPoints)) additionalKeyPoints = parsed.keyPoints;
+                break;
+              }
+            } catch (modelErr: any) {
+              console.warn(`Vision model ${model} fallback:`, modelErr?.message || modelErr);
+            }
+          }
+        } catch (visionErr: any) {
+          console.warn('Multimodal AI OCR failed or timed out:', visionErr?.message);
+        }
+      }
+    }
+
     const result = await processDocumentUniversal({
       filename,
       fileData,
@@ -929,6 +1082,10 @@ app.post('/api/ocr/process', optionalAuthenticateUser, async (req: Request, res:
       fileSize,
       documentId,
       userId,
+      ocrLines,
+      suggestedType,
+      additionalFacts,
+      additionalKeyPoints,
     });
 
     return res.json(result);
@@ -1025,12 +1182,8 @@ ${JSON.stringify(confirmedEntities.slice(0, 8))}
 
 Answer:`;
 
-        const aiRes = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: prompt,
-        });
-
-        const answer = (aiRes.text || '').trim();
+        const aiRes = await generateGeminiContentWithFallback(prompt);
+        const answer = (aiRes?.text || '').trim();
         if (answer) {
           const isEmergency = lower.includes('chest pain') || lower.includes('heart attack') || lower.includes('stroke') || lower.includes('cpr') || lower.includes('severe bleeding');
           return res.json({ success: true, answer, reply: answer, isEmergency });
@@ -1980,26 +2133,22 @@ Format output as JSON with this exact schema:
   "summaryNotes": "string"
 }`;
 
-        const model = 'gemini-2.5-flash';
-        const response = await ai.models.generateContent({
-          model,
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                { text: prompt },
-                {
-                  inlineData: {
-                    mimeType: mimeType || 'image/jpeg',
-                    data: base64Data,
-                  },
+        const response = await generateGeminiContentWithFallback([
+          {
+            role: 'user',
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: mimeType || 'image/jpeg',
+                  data: base64Data,
                 },
-              ],
-            },
-          ],
-        });
+              },
+            ],
+          },
+        ]);
 
-        const textOutput = response.text || '';
+        const textOutput = response?.text || '';
         let parsedResult: any = null;
         try {
           const jsonMatch = textOutput.match(/\{[\s\S]*\}/);
