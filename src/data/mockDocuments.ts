@@ -9,10 +9,21 @@ export const CURRENT_PATIENT: PatientInfo = {
   emergencyContact: 'Emergency Contact (+91 98765 00000)',
 };
 
+function escapeXml(unsafe: string): string {
+  return (unsafe || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 // SVG data URI generator for authentic looking Indian clinical documents
 function createSvgDocUri(title: string, subtitle: string, bodyContent: string, isHandwritten: boolean = false, blur: boolean = false): string {
   const filterDef = blur ? `<filter id="blurFilter"><feGaussianBlur stdDeviation="3.5"/></filter>` : '';
   const filterAttr = blur ? 'filter="url(#blurFilter)"' : '';
+  const safeTitle = escapeXml(title);
+  const safeSubtitle = escapeXml(subtitle);
   
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1100" viewBox="0 0 800 1100">
     <defs>
@@ -29,8 +40,8 @@ function createSvgDocUri(title: string, subtitle: string, bodyContent: string, i
       <!-- Hospital / Clinic Header -->
       <circle cx="60" cy="65" r="24" fill="#0d9488" opacity="0.15"/>
       <path d="M60 48v34M43 65h34" stroke="#0d9488" stroke-width="4.5" stroke-linecap="round"/>
-      <text x="96" y="58" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">${title}</text>
-      <text x="96" y="78" font-family="Arial, sans-serif" font-size="12" fill="#64748b">${subtitle}</text>
+      <text x="96" y="58" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">${safeTitle}</text>
+      <text x="96" y="78" font-family="Arial, sans-serif" font-size="12" fill="#64748b">${safeSubtitle}</text>
       
       <!-- Patient Meta Ribbon -->
       <line x1="40" y1="105" x2="760" y2="105" stroke="#e2e8f0" stroke-width="1.5"/>

@@ -36,9 +36,9 @@ export const ApiService = {
       if (saved && saved.trim()) return saved.trim().replace(/\/+$/, '');
     } catch {}
 
-    // On Capacitor Android native platform, default to developer's LAN host
+    // On Capacitor Android native platform, default to current local Wi-Fi / Hotspot host
     if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
-      return 'http://10.74.20.17:3000';
+      return 'http://10.56.37.17:3000';
     }
     return '';
   },

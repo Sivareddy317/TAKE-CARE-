@@ -55,8 +55,6 @@ Read the comprehensive evaluation report: **[eval/report.md](eval/report.md)** |
 | **Prompt Injection Resistance** | **100% Blocked (0 leaks)** | 0 leaks | Malicious adversarial prompt doc | `eval/truth/40_edge_prompt_injection.json` |
 | **Negative Input Filtering** | **100% Rejected (0 facts)** | 0 facts | Blank pages, photos, X-rays | `eval/docs/31-36` |
 | **Wrong Facts Shown as "Clear"** | **0 items** | 0 items | Trust & Safety Flagging | `eval/report.json` |
-| **P50 Pipeline Latency** | **2,476 ms** (2.47s) | <3.0s | Online Multimodal Pipeline | `eval/raw/task3_online_raw.txt` |
-| **Cost per Document** | **$0.00018** (~₹0.015) | <$0.01 | Gemini 3.5 Flash-Lite rates | `eval/report.json` |
 | **Cross-User Data Leakage** | **0 Leaks (Pass)** | 0 leaks | Multi-tenant auth isolation test | `eval/raw/task4_access_control.txt` |
 | **Doctor Revocation Latency** | **Immediate (HTTP 401)** | Immediate | Ephemeral 6-digit sharing test | `eval/raw/task4_access_control.txt` |
 
