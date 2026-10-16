@@ -1,0 +1,21 @@
+{
+  "doc_type": "prescription",
+  "facts": [
+    {
+      "type": "medication",
+      "name": "Pantoprazole",
+      "dose": "40 mg",
+      "frequency": "1-0-0"
+    },
+    {
+      "type": "condition",
+      "name": "Gastritis"
+    }
+  ],
+  "must_not_contain": [
+    "Penicillin",
+    "No known allergies",
+    "NKDA"
+  ],
+  "allergy_status": "not_documented"
+}

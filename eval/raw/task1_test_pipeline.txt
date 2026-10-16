@@ -1,0 +1,168 @@
+COMMAND: node ./node_modules/tsx/dist/cli.mjs test-pipeline.ts
+
+RAW OUTPUT:
+================================================================
+TAKE CARE — UNIVERSAL PIPELINE AUTOMATED INTEGRITY TEST SUITE
+================================================================
+
+----------------------------------------------------------------
+AUTOMATED TEST SUITE EXECUTION RESULTS
+----------------------------------------------------------------
+PASS [OK] Test 1: Digital prescription PDF
+       - Classified as prescription: YES
+       - Extracted Amoxicillin 500mg and Paracetamol 650mg verbatim: YES
+       - Zero injected dummy entities (no Telmisartan / Metformin): YES
+       - Accurate page count and attribution: YES
+       -> Details: Entities extracted: 2, Classification: prescription
+
+PASS [OK] Test 2: Scanned prescription PDF
+       - Classified as prescription from OCR text: YES
+       - Extracted Omeprazole 20mg with exact quote: YES
+       - Grounded line citation verified: YES
+       -> Details: Facts: 1, Evidence: "Rx: Tab. Omeprazole 20 mg - 1-0-0 before breakfast"
+
+PASS [OK] Test 3: Multi-page discharge summary
+       - Document type is discharge_summary: YES
+       - Page count is accurately 2: YES
+       - Extracted diagnosis from Page 1: YES
+       - Extracted discharge medication mapped to Page 2: YES
+       -> Details: Pages: 2, Entities: 3
+
+PASS [OK] Test 4: Laboratory report with a table
+       - Classified as lab_report: YES
+       - Preserved exact Hemoglobin 11.2 g/dL with LOW flag: YES
+       - Preserved exact Fasting Blood Sugar 110 mg/dL with HIGH flag: YES
+       - Preserved exact Serum Creatinine 0.9 mg/dL: YES
+       - Zero injected fake HbA1c 7.8%: YES
+       -> Details: Lab findings: 4, Classification: lab_report
+
+PASS [OK] Test 5: Radiology report
+       - Classified as imaging_report: YES
+       - Extracted Impression verbatim from source: YES
+       - Extracted Findings verbatim from source: YES
+       - Zero medications or unrelated findings hallucinated: YES
+       -> Details: Radiology findings: 2, Impression: detected
+
+PASS [OK] Test 6: X-ray image without written report
+       - isImageOnly flag is true: YES
+       - Classified as imaging_image_no_text: YES
+       - Zero clinical entities extracted: YES
+       - Zero key points extracted: YES
+       - Exact required notice displayed: YES
+       -> Details: Entities: 0, Notice: "No reliable clinical text detected. Upload the cor..."
+
+PASS [OK] Test 7: MRI or CT image
+       - isImageOnly flag is true: YES
+       - Zero facts extracted from raw scan: YES
+       - Category preserved as scan: YES
+       - Zero fake prescriptions or lab values injected: YES
+       -> Details: Status: Confirmed, Category: scan
+
+PASS [OK] Test 8: Image containing readable report text
+       - Classified as ecg_report from OCR text: YES
+       - High classification confidence: YES
+       -> Details: Type: ecg_report, Conf: 0.9099999999999999
+
+PASS [OK] Test 9: Rotated, low-contrast image
+       - Readability scored as "Check carefully": YES
+       - Grounded finding preserved without hallucination: YES
+       -> Details: Readability: Check carefully, Facts: 1
+
+PASS [OK] Test 10: Blank image
+       - Zero facts extracted: YES
+       - Zero key points extracted: YES
+       - Classified as imaging_image_no_text: YES
+       -> Details: Facts: 0, Key points: 0
+
+PASS [OK] Test 11: Noisy image
+       - Zero facts extracted from noise: YES
+       - Identified as unreadable: YES
+       -> Details: Type: unreadable, Facts: 0
+
+PASS [OK] Test 12: Corrupt PDF
+       - Processing failed safely without throwing unhandled error: YES
+       - Clear actionable error returned to user: YES
+       - Zero fake documents or entities persisted: YES
+       -> Details: Error: "Corrupt or unreadable PDF document. The file does not have a valid PDF header."
+
+PASS [OK] Test 13: Unsupported file type
+       - Unsupported file rejected safely: YES
+       - Explains accepted formats (PDF, JPG, PNG): YES
+       -> Details: Error: "Unsupported file format ".exe". Take Care accepts PDF, JPG, JPEG, and PNG medical records."
+
+PASS [OK] Test 14: Document containing malformed or misleading text
+       - Hallucinated candidate rejected by evidence quote check: YES
+       - Discarded fact counter incremented: YES
+       -> Details: Discarded count: 1, Validated facts: 0
+
+PASS [OK] Test 15: Missing and conflicting dates validation
+       - Consultation date preserved distinctly from report print date: YES
+       - Report printed timestamp preserved without overwriting clinical event: YES
+       - Zero fabricated dates invented: YES
+       -> Details: Consultation date: 12-Jan-2025, Report date: 15-Jan-2025 correctly distinguished
+
+PASS [OK] Test 16: Duplicate uploads and reprocessing determinism
+       - Reprocessing generates identical deterministic entity count: YES
+       - Document categorization remains strictly identical: YES
+       -> Details: Run 1 entities: 0, Run 2 entities: 0
+
+PASS [OK] Test 17: Unauthorized user access boundary and data isolation
+       - Direct access by unauthorized stranger rejected with 403 Forbidden: YES
+       - Zero patient documents leaked to unverified requester: YES
+       -> Details: Strict backend identity check prevents cross-user document leakage
+
+PASS [OK] Test 18: Family permission boundaries (Emergency vs Complete)
+       - Emergency summary filters out sensitive lab files and raw docs: YES
+       - Emergency view includes life-safety allergies and current meds: YES
+       -> Details: Emergency view permitted 3 critical items, securely omitting labs
+
+PASS [OK] Test 19: Immediate backend permission revocation
+       - Revocation takes effect immediately on backend: YES
+       - Subsequent summary requests return 403 Access Revoked: YES
+       -> Details: Access status set to revoked, permissionLevel set to none
+
+PASS [OK] Test 20: Offline synchronization queue and duplicate prevention
+       - Idempotency key prevents duplicate queued operations: YES
+       - Queue preserves chronological ordering for network replay: YES
+       -> Details: Enqueued idempotent actions correctly recognized as duplicates: true
+
+PASS [OK] Test 21: Reminder scheduling and lockscreen privacy guard
+       - Lockscreen notification conceals sensitive drug name by default: YES
+       - Reminders strictly require explicit user confirmation: YES
+       -> Details: Generic notification text: "Time for your scheduled medicine"
+
+PASS [OK] Test 22: Emergency-ready single-page PDF generation
+       - Generated standard compliant single-page PDF binary: YES
+       - Includes blood group, verified allergies, and emergency contact: YES
+       - Embedded clinical disclaimer on emergency communication aid: YES
+       -> Details: Generated PDF size: 1951 bytes with valid PDF header
+
+PASS [OK] Test 23: Fresh user onboarding data isolation & zero prefilled PHI
+       - No hardcoded "Siva Reddy" fallback for genuinely new user: YES
+       - Genuinely new account starts with empty document list: YES
+       - New account flagged with incomplete profile for completion guidance: YES
+       -> Details: New account: Aarav Kumar (+91 9876543210), isComplete: false
+
+PASS [OK] Test 24: Minimum health profile completion percentage calculation
+       - Calculates partial percentage based strictly on required fields (3/8 = 38%): YES
+       - Calculates 100% completion when all minimum health profile items supplied: YES
+       - Supports optional clinical fields (BP reading, sugar) without penalizing profile: YES
+       -> Details: Partial: 38%, Complete: 100%
+
+PASS [OK] Test 25: Injury photo analysis safeguards & explicit save consent
+       - Never returns definitive diagnosis; provides structured non-pharmacological first aid: YES
+       - Surfaces immediate emergency triage guidance for severe symptoms: YES
+       - Injury photos strictly saved to medical history ONLY with explicit user consent: YES
+       -> Details: Wound/burn analysis implements non-diagnostic triage and mandatory consent gaurdrails.
+
+PASS [OK] Test 26: Account logout & client-side cache wipe
+       - Clears cached documents and profile state on sign-out: YES
+       - Prevents subsequent user from viewing previous account data: YES
+       - Reset application state safely to clean sign-in screen: YES
+       -> Details: Logout reliably purges local storage tokens, cached documents, and active profile.
+
+================================================================
+SUMMARY: 26 / 26 TESTS PASSED
+================================================================
+
+

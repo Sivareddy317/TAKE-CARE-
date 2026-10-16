@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile, AppPermissionsStatus } from '../types/clinical';
 import { ApiService } from '../services/api';
 import { checkFirestoreConnection } from '../services/firebase';
+import { pilotMetrics } from '../services/pilotMetrics';
 
 interface SettingsViewProps {
   profile: UserProfile;
@@ -33,6 +34,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Pilot Instrumentation State (Task 6)
+  const [pilotEnabled, setPilotEnabled] = useState(pilotMetrics.isEnabled());
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackEase, setFeedbackEase] = useState<number>(5);
+  const [feedbackTrust, setFeedbackTrust] = useState<number>(5);
+  const [feedbackWouldUse, setFeedbackWouldUse] = useState<'Yes' | 'Maybe' | 'No'>('Yes');
+  const [feedbackConfusing, setFeedbackConfusing] = useState<string>('None');
+  const [feedbackComments, setFeedbackComments] = useState<string>('');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState<boolean>(false);
 
   // Check actual browser permissions on mount
   useEffect(() => {
@@ -427,6 +438,78 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
+      {/* Pilot Instrumentation & Quality Telemetry Card (Task 6) */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px] text-[#006D60]">insights</span>
+            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Pilot Quality Telemetry
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !pilotEnabled;
+              setPilotEnabled(next);
+              pilotMetrics.setEnabled(next);
+            }}
+            className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition flex items-center gap-1 cursor-pointer ${
+              pilotEnabled
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                : 'bg-slate-100 text-slate-600 border border-slate-200'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[14px]">
+              {pilotEnabled ? 'toggle_on' : 'toggle_off'}
+            </span>
+            <span>{pilotEnabled ? 'ACTIVE (OPT-IN)' : 'OFF (DEFAULT)'}</span>
+          </button>
+        </div>
+
+        <p className="text-[11px] text-slate-500 leading-relaxed">
+          Local-first, anonymous measurement of workflow latency, extraction accuracy confirmations, and usability. <strong>Zero clinical content or PII</strong> is logged or transmitted.
+        </p>
+
+        {pilotEnabled && (
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-2 text-[11px]">
+            <div className="flex justify-between items-center text-slate-600">
+              <span>Time to First Summary:</span>
+              <span className="font-mono font-bold text-slate-900">
+                {pilotMetrics.getState().time_to_first_summary_ms
+                  ? `${(pilotMetrics.getState().time_to_first_summary_ms! / 1000).toFixed(2)}s`
+                  : 'Pending first review'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-slate-600">
+              <span>Documents Reviewed in Pilot:</span>
+              <span className="font-mono font-bold text-slate-900">
+                {pilotMetrics.getState().documentReviews.length}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => setShowFeedbackModal(true)}
+            className="flex-1 h-9 rounded-xl bg-[#006D60]/10 hover:bg-[#006D60]/20 text-[#006D60] text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[16px]">rate_review</span>
+            <span>In-App Feedback</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => pilotMetrics.downloadCsv()}
+            className="flex-1 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[16px]">download</span>
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </div>
+
       {/* Account Actions: Logout & Permanent Deletion */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs space-y-3">
         <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Account Actions</h2>
@@ -520,6 +603,180 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5-Question In-App Pilot Feedback Modal (Task 6) */}
+      {showFeedbackModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-[#006D60]">rate_review</span>
+                <h3 className="text-sm font-bold text-slate-900">Pilot Clinical Feedback</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setFeedbackSubmitted(false);
+                }}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            {feedbackSubmitted ? (
+              <div className="py-6 text-center space-y-2">
+                <span className="material-symbols-outlined text-4xl text-emerald-600">check_circle</span>
+                <p className="text-xs font-bold text-slate-800">Feedback Saved Locally</p>
+                <p className="text-[11px] text-slate-500">
+                  Thank you. Your responses are stored anonymously and included in the pilot CSV export.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFeedbackModal(false);
+                    setFeedbackSubmitted(false);
+                  }}
+                  className="mt-3 px-4 py-2 bg-[#006D60] text-white text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3 text-xs">
+                {/* Q1: Ease of Use */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    1. Ease of use (1 = Confusing, 5 = Effortless): <span className="text-[#006D60] font-black">{feedbackEase}/5</span>
+                  </label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((score) => (
+                      <button
+                        key={score}
+                        type="button"
+                        onClick={() => setFeedbackEase(score)}
+                        className={`flex-1 py-1.5 rounded-lg border font-bold text-xs transition cursor-pointer ${
+                          feedbackEase === score
+                            ? 'bg-[#006D60] text-white border-[#006D60]'
+                            : 'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {score}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Q2: Trust in Summary */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    2. Trust in clinical summary (1 = Distrust, 5 = Fully trust): <span className="text-[#006D60] font-black">{feedbackTrust}/5</span>
+                  </label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((score) => (
+                      <button
+                        key={score}
+                        type="button"
+                        onClick={() => setFeedbackTrust(score)}
+                        className={`flex-1 py-1.5 rounded-lg border font-bold text-xs transition cursor-pointer ${
+                          feedbackTrust === score
+                            ? 'bg-[#006D60] text-white border-[#006D60]'
+                            : 'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {score}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Q3: Would you use again */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    3. Would you use Take Care again?
+                  </label>
+                  <div className="flex gap-2">
+                    {(['Yes', 'Maybe', 'No'] as const).map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setFeedbackWouldUse(opt)}
+                        className={`flex-1 py-1.5 rounded-lg border font-bold text-xs transition cursor-pointer ${
+                          feedbackWouldUse === opt
+                            ? 'bg-[#006D60] text-white border-[#006D60]'
+                            : 'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Q4: What was confusing */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    4. What was confusing?
+                  </label>
+                  <select
+                    value={feedbackConfusing}
+                    onChange={(e) => setFeedbackConfusing(e.target.value)}
+                    className="w-full h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                  >
+                    <option value="None">Nothing, flow was clear</option>
+                    <option value="Document Upload & Camera">Document Upload &amp; Camera</option>
+                    <option value="Review & Confirm Step">Review &amp; Confirm Step</option>
+                    <option value="Doctor 6-Digit Code">Doctor 6-Digit Code</option>
+                    <option value="Health Summary Layout">Health Summary Layout</option>
+                    <option value="Other">Other (specify below)</option>
+                  </select>
+                </div>
+
+                {/* Q5: Free text */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    5. Free text suggestions / notes:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={feedbackComments}
+                    onChange={(e) => setFeedbackComments(e.target.value)}
+                    placeholder="Any observations or feature requests..."
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      pilotMetrics.submitFeedback({
+                        easeOfUse: feedbackEase,
+                        trustInSummary: feedbackTrust,
+                        wouldUseAgain: feedbackWouldUse,
+                        whatWasConfusing: feedbackConfusing,
+                        freeText: feedbackComments,
+                      });
+                      setFeedbackSubmitted(true);
+                    }}
+                    className="flex-1 h-9 bg-[#006D60] hover:bg-[#005a4f] text-white font-bold rounded-xl cursor-pointer"
+                  >
+                    Save Feedback
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowFeedbackModal(false)}
+                    className="px-3 h-9 text-slate-500 font-bold hover:text-slate-800 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

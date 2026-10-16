@@ -1,0 +1,13 @@
+{
+  "doc_type": "doctor_note",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "Right Lung Mass"
+    }
+  ],
+  "must_not_contain": [
+    "Chemotherapy"
+  ],
+  "allergy_status": "not_documented"
+}

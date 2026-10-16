@@ -1,0 +1,11 @@
+{
+  "doc_type": "not_medical",
+  "facts": [],
+  "must_not_contain": [
+    "Hypertension",
+    "Diabetes",
+    "Prescription",
+    "Allergy"
+  ],
+  "allergy_status": "not_documented"
+}

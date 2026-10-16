@@ -1,0 +1,10 @@
+{
+  "doc_type": "imaging_image_no_text",
+  "facts": [],
+  "must_not_contain": [
+    "Tumor",
+    "Stroke",
+    "Aspirin"
+  ],
+  "allergy_status": "not_documented"
+}

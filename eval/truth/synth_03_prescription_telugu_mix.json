@@ -1,0 +1,25 @@
+{
+  "doc_type": "prescription",
+  "facts": [
+    {
+      "type": "medication",
+      "name": "Metformin",
+      "dose": "500 mg",
+      "frequency": "1-0-1"
+    },
+    {
+      "type": "medication",
+      "name": "Glimepiride",
+      "dose": "1 mg",
+      "frequency": "1-0-0"
+    },
+    {
+      "type": "condition",
+      "name": "Type 2 Diabetes Mellitus"
+    }
+  ],
+  "must_not_contain": [
+    "Insulin Glargine"
+  ],
+  "allergy_status": "not_documented"
+}

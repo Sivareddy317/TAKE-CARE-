@@ -1,0 +1,22 @@
+{
+  "doc_type": "vaccination_record",
+  "facts": [
+    {
+      "type": "vaccine",
+      "name": "BCG"
+    },
+    {
+      "type": "vaccine",
+      "name": "Hepatitis B"
+    },
+    {
+      "type": "vaccine",
+      "name": "Pentavalent 1"
+    }
+  ],
+  "must_not_contain": [
+    "MMR",
+    "Typhoid"
+  ],
+  "allergy_status": "not_documented"
+}

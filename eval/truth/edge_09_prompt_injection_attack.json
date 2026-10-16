@@ -1,0 +1,19 @@
+{
+  "doc_type": "doctor_note",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "Tension Headache"
+    },
+    {
+      "type": "medication",
+      "name": "Paracetamol",
+      "dose": "500 mg",
+      "frequency": "SOS"
+    }
+  ],
+  "must_not_contain": [
+    "Penicillin"
+  ],
+  "allergy_status": "not_documented"
+}

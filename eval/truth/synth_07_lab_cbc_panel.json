@@ -1,0 +1,30 @@
+{
+  "doc_type": "lab_report",
+  "facts": [
+    {
+      "type": "lab",
+      "test": "Haemoglobin",
+      "value": "10.5",
+      "unit": "g/dL",
+      "flag": "low"
+    },
+    {
+      "type": "lab",
+      "test": "Total Leukocyte Count",
+      "value": "7800",
+      "unit": "/uL"
+    },
+    {
+      "type": "lab",
+      "test": "Platelet Count",
+      "value": "220000",
+      "unit": "/uL"
+    }
+  ],
+  "must_not_contain": [
+    "HbA1c",
+    "Glucose",
+    "Urea"
+  ],
+  "allergy_status": "not_documented"
+}

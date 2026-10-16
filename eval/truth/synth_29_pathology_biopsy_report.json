@@ -1,0 +1,14 @@
+{
+  "doc_type": "pathology_report",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "Benign fibrocystic breast changes"
+    }
+  ],
+  "must_not_contain": [
+    "Carcinoma",
+    "Malignant"
+  ],
+  "allergy_status": "not_documented"
+}

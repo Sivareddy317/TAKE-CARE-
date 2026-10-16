@@ -1,0 +1,41 @@
+=== SERVER ROUTES SECURITY & AUTH AUDIT ===
+Total routes detected: 38
+
+[GET   ] /api/health                         | Auth: PUBLIC / NO AUTH               | Unauth Status: 200 | Response: {"status":"ok","aiAvailable":true,"demoMode":false,"totalUsers":3,"timestamp":"2026-10-16T06:02:24.6
+[POST  ] /api/auth/register                  | Auth: PUBLIC / NO AUTH               | Unauth Status: 400 | Response: {"error":"Mobile number is required."}
+[POST  ] /api/auth/verify                    | Auth: PUBLIC / NO AUTH               | Unauth Status: 400 | Response: {"error":"Mobile and verification code are required."}
+[POST  ] /api/auth/login                     | Auth: PUBLIC / NO AUTH               | Unauth Status: 400 | Response: {"error":"Mobile number and password are required."}
+[POST  ] /api/auth/email-login               | Auth: PUBLIC / NO AUTH               | Unauth Status: 400 | Response: {"error":"Email and password are required."}
+[POST  ] /api/auth/dev-quick-login           | Auth: PUBLIC / NO AUTH               | Unauth Status: 200 | Response: {"success":true,"token":"tok_9de8f085517afc35a94916ddae4d4c511e3c53342d3f9a018627f55f237a8047","user
+[GET   ] /api/auth/me                        | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[POST  ] /api/auth/firebase-session          | Auth: PUBLIC / NO AUTH               | Unauth Status: 400 | Response: {"error":"Valid Firebase UID is required."}
+[POST  ] /api/auth/logout                    | Auth: PUBLIC / NO AUTH               | Unauth Status: 200 | Response: {"success":true,"message":"Logged out successfully."}
+[DELETE] /api/auth/account                   | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[GET   ] /api/profile                        | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[PUT   ] /api/profile                        | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[GET   ] /api/documents                      | Auth: OPTIONAL (guest fallback)      | Unauth Status: 200 | Response: {"success":true,"documents":[{"id":"doc_1792126262941_mk8ny","uploadDate":"16 Oct 2026","filename":"
+[POST  ] /api/documents                      | Auth: OPTIONAL (guest fallback)      | Unauth Status: 400 | Response: {"error":"Valid document payload is required."}
+[DELETE] /api/documents/:id                  | Auth: OPTIONAL (guest fallback)      | Unauth Status: 404 | Response: {"error":"Document not found or does not belong to your account."}
+[POST  ] /api/ocr/process                    | Auth: OPTIONAL (guest fallback)      | Unauth Status: 200 | Response: {"success":true,"documentId":"doc_1792130544960_w0jhb","filename":"document.pdf","fileType":"pdf","c
+[PUT   ] /api/documents/:docId/entity        | Auth: OPTIONAL (guest fallback)      | Unauth Status: 404 | Response: {"error":"Document not found."}
+[POST  ] /api/documents/:docId/confirm-all   | Auth: OPTIONAL (guest fallback)      | Unauth Status: 404 | Response: {"error":"Document not found."}
+[POST  ] /api/chat/ask-ayu                   | Auth: OPTIONAL (guest fallback)      | Unauth Status: 200 | Response: {"answer":"Please ask a health question or inquiry about your medical records."}
+[GET   ] /api/summary                        | Auth: OPTIONAL (guest fallback)      | Unauth Status: 200 | Response: {"success":true,"hasSummary":true,"totalDocuments":38,"totalConfirmedDocs":21,"patient":{"id":"guest
+[GET   ] /api/share/active-session           | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[POST  ] /api/share/generate-code            | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[POST  ] /api/share/revoke                   | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[POST  ] /api/doctor/verify-access           | Auth: PUBLIC / NO AUTH               | Unauth Status: 400 | Response: {"error":"Access code is required."}
+[GET   ] /api/doctor/summary                 | Auth: PUBLIC / NO AUTH               | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid viewing token."}
+[POST  ] /api/doctor/sign-note               | Auth: PUBLIC / NO AUTH               | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid viewing token."}
+[GET   ] /api/family/members                 | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[POST  ] /api/family/invite                  | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[POST  ] /api/family/grant-access            | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[POST  ] /api/family/revoke-access           | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[DELETE] /api/family/member/:id              | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[POST  ] /api/family/accept-invite           | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[GET   ] /api/family/profile-summary/:memberId | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[GET   ] /api/family/audit-logs              | Auth: REQUIRED (authenticateUser)    | Unauth Status: 401 | Response: {"error":"Unauthorized: Missing or invalid authentication token."}
+[GET   ] /api/test/regression-suite          | Auth: PUBLIC / NO AUTH               | Unauth Status: 200 | Response: {"success":true,"allPassed":true,"totalTests":9,"passedTests":9,"results":[{"id":"reg-1-xray-zero-fa
+[POST  ] /api/vision/analyze-injury          | Auth: OPTIONAL (guest fallback)      | Unauth Status: 400 | Response: {"error":"Image data is required for analysis."}
+[POST  ] /api/vision/save-injury-record      | Auth: OPTIONAL (guest fallback)      | Unauth Status: 400 | Response: {"error":"Explicit patient consent is required to save injury photos to health records."}
+[GET   ] *                                   | Auth: PUBLIC / NO AUTH               | Unauth Status: 0 | Response: Network error: Failed to parse URL from http://localhost:3000*

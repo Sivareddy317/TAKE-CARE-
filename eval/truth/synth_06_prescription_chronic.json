@@ -1,0 +1,32 @@
+{
+  "doc_type": "prescription",
+  "facts": [
+    {
+      "type": "medication",
+      "name": "Atorvastatin",
+      "dose": "20 mg",
+      "frequency": "0-0-1"
+    },
+    {
+      "type": "medication",
+      "name": "Aspirin",
+      "dose": "75 mg",
+      "frequency": "0-1-0"
+    },
+    {
+      "type": "medication",
+      "name": "Metoprolol",
+      "dose": "25 mg",
+      "frequency": "1-0-0"
+    },
+    {
+      "type": "condition",
+      "name": "Coronary Artery Disease"
+    }
+  ],
+  "must_not_contain": [
+    "Rosuvastatin",
+    "Clopidogrel"
+  ],
+  "allergy_status": "none_known"
+}

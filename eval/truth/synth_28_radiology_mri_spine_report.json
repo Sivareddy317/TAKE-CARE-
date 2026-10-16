@@ -1,0 +1,15 @@
+{
+  "doc_type": "imaging_report",
+  "facts": [
+    {
+      "type": "imaging_finding",
+      "name": "Impression",
+      "value": "Mild L4-L5 disc protrusion"
+    }
+  ],
+  "must_not_contain": [
+    "Antibiotics",
+    "Fracture"
+  ],
+  "allergy_status": "not_documented"
+}

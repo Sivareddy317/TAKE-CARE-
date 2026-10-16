@@ -1,0 +1,25 @@
+{
+  "doc_type": "discharge_summary",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "Diabetic Ketoacidosis"
+    },
+    {
+      "type": "medication",
+      "name": "Insulin Glargine",
+      "dose": "14 IU",
+      "frequency": "0-0-1"
+    },
+    {
+      "type": "medication",
+      "name": "Metformin",
+      "dose": "1000 mg",
+      "frequency": "1-0-1"
+    }
+  ],
+  "must_not_contain": [
+    "Sulphonylurea"
+  ],
+  "allergy_status": "none_known"
+}

@@ -1,0 +1,9 @@
+{
+  "doc_type": "imaging_image_no_text",
+  "facts": [],
+  "must_not_contain": [
+    "Medicine",
+    "Doctor"
+  ],
+  "allergy_status": "not_documented"
+}

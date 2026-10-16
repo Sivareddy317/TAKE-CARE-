@@ -152,13 +152,17 @@ export default function App() {
             return 'home';
           });
         } else {
-          // If no active session, show onboarding carousel or login
+          // If no active session, show onboarding carousel or login (unless direct hash is specified)
+          if (!window.location.hash) {
+            const hasSeenOnboarding = localStorage.getItem('ayu_seen_onboarding');
+            setCurrentTab(hasSeenOnboarding ? 'login' : 'onboarding');
+          }
+        }
+      } catch {
+        if (!window.location.hash) {
           const hasSeenOnboarding = localStorage.getItem('ayu_seen_onboarding');
           setCurrentTab(hasSeenOnboarding ? 'login' : 'onboarding');
         }
-      } catch {
-        const hasSeenOnboarding = localStorage.getItem('ayu_seen_onboarding');
-        setCurrentTab(hasSeenOnboarding ? 'login' : 'onboarding');
       } finally {
         setIsLoadingAuth(false);
       }
@@ -167,22 +171,73 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Sync hash routing if user opens /doctor/access or similar
+  // Sync hash routing if user opens /doctor/access or direct feature hashes
   useEffect(() => {
     const handleHash = () => {
-      const hash = window.location.hash;
-      if (hash === '#doctor-access' || hash === '#/doctor/access') {
+      const hash = window.location.hash.replace(/^#\/?/, '');
+      if (!hash) return;
+
+      if (['demo', 'summary', 'verification', 'review', 'emergency', 'upload', 'share', 'ask-ayu', 'ask-care', 'account', 'settings'].includes(hash)) {
+        if (!currentUser) {
+          setCurrentUser({
+            id: 'demo_user',
+            name: 'Demo Patient',
+            mobile: '9876543210',
+            email: 'demo@takecare.local',
+            isAnonymous: true,
+          });
+          setCurrentProfile({
+            id: 'prof_demo_user',
+            userId: 'demo_user',
+            fullName: 'Demo Patient',
+            dob: '1988-06-15',
+            gender: 'Female',
+            bloodGroup: 'B+',
+            allergies: ['Penicillin'],
+            mobile: '9876543210',
+            isMobileVerified: true,
+            isComplete: true,
+            updatedAt: Date.now(),
+          });
+        }
+        if (realUserDocuments.length === 0) {
+          setRealUserDocuments(PRELOADED_DOCUMENTS);
+        }
+        if (!activeDocument && PRELOADED_DOCUMENTS.length > 0) {
+          setActiveDocument(PRELOADED_DOCUMENTS[0]);
+        }
+      }
+
+      if (hash === 'doctor-access' || hash === 'doctor/access' || hash === 'doctor-portal') {
         setCurrentTab('doctor-access');
-      } else if (hash === '#login' || hash === '#/login') {
+      } else if (hash === 'login') {
+        setCurrentUser(null);
         setCurrentTab('login');
-      } else if (hash === '#onboarding') {
+      } else if (hash === 'onboarding') {
         setCurrentTab('onboarding');
+      } else if (hash === 'upload') {
+        setCurrentTab('upload');
+      } else if (hash === 'summary') {
+        setCurrentTab('summary');
+      } else if (hash === 'verification' || hash === 'review') {
+        if (!activeDocument && PRELOADED_DOCUMENTS.length > 0) {
+          setActiveDocument(PRELOADED_DOCUMENTS[0]);
+        }
+        setCurrentTab('verification');
+      } else if (hash === 'share') {
+        setCurrentTab('share');
+      } else if (hash === 'ask-ayu' || hash === 'ask-care') {
+        setCurrentTab('ask-ayu');
+      } else if (hash === 'account' || hash === 'profile') {
+        setCurrentTab('account');
+      } else if (hash === 'settings') {
+        setCurrentTab('settings');
       }
     };
     handleHash();
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+  }, [realUserDocuments.length, activeDocument, currentUser]);
 
   // Handle Android native back button & gesture navigation
   useEffect(() => {

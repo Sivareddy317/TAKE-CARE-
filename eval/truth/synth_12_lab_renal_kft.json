@@ -1,0 +1,31 @@
+{
+  "doc_type": "lab_report",
+  "facts": [
+    {
+      "type": "lab",
+      "test": "Blood Urea",
+      "value": "48",
+      "unit": "mg/dL",
+      "flag": "high"
+    },
+    {
+      "type": "lab",
+      "test": "Serum Creatinine",
+      "value": "1.7",
+      "unit": "mg/dL",
+      "flag": "high"
+    },
+    {
+      "type": "lab",
+      "test": "Serum Uric Acid",
+      "value": "8.2",
+      "unit": "mg/dL",
+      "flag": "high"
+    }
+  ],
+  "must_not_contain": [
+    "Bilirubin",
+    "Amylase"
+  ],
+  "allergy_status": "not_documented"
+}

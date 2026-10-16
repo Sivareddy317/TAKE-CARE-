@@ -1,0 +1,25 @@
+{
+  "doc_type": "discharge_summary",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "Acute Ischemic Stroke"
+    },
+    {
+      "type": "medication",
+      "name": "Clopidogrel",
+      "dose": "75 mg",
+      "frequency": "1-0-0"
+    },
+    {
+      "type": "medication",
+      "name": "Atorvastatin",
+      "dose": "40 mg",
+      "frequency": "0-0-1"
+    }
+  ],
+  "must_not_contain": [
+    "Heparin"
+  ],
+  "allergy_status": "none_known"
+}

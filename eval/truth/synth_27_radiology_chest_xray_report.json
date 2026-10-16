@@ -1,0 +1,15 @@
+{
+  "doc_type": "imaging_report",
+  "facts": [
+    {
+      "type": "imaging_finding",
+      "name": "Impression",
+      "value": "Normal chest radiograph"
+    }
+  ],
+  "must_not_contain": [
+    "Metformin",
+    "Paracetamol"
+  ],
+  "allergy_status": "not_documented"
+}

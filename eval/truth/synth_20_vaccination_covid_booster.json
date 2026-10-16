@@ -1,0 +1,17 @@
+{
+  "doc_type": "vaccination_record",
+  "facts": [
+    {
+      "type": "vaccine",
+      "name": "Covishield"
+    },
+    {
+      "type": "vaccine",
+      "name": "Precaution Dose"
+    }
+  ],
+  "must_not_contain": [
+    "Covaxin"
+  ],
+  "allergy_status": "not_documented"
+}

@@ -1,0 +1,14 @@
+# TAKE CARE PILOT INSTRUMENTATION EXPORT
+# Local-First Anonymous Clinical Telemetry (No PII / No Clinical Content)
+ExportedAt,2026-10-16T06:14:25.864Z
+TelemetryEnabled,true
+TimeToFirstSummaryMs,107
+
+--- DOCUMENT INTERACTION EVENTS ---
+EventDocId,DocType,FactsConfirmed,FactsRejected,FactsEdited,TimestampIso
+doc_hqotnv9,prescription,3,0,0,2026-10-16T06:14:25.862Z
+doc_qt3amc8,lab,4,0,1,2026-10-16T06:14:25.863Z
+
+--- PILOT CLINICAL FEEDBACK (5 QUESTIONS) ---
+FeedbackId,EaseOfUse_1to5,TrustInSummary_1to5,WouldUseAgain,WhatWasConfusing,FreeText,TimestampIso
+fb_1792131265863_ys7f,5,5,Yes,"None","Clean clinical source highlighting. Very fast.",2026-10-16T06:14:25.863Z

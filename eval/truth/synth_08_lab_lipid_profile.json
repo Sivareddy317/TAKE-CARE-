@@ -1,0 +1,38 @@
+{
+  "doc_type": "lab_report",
+  "facts": [
+    {
+      "type": "lab",
+      "test": "Total Cholesterol",
+      "value": "245",
+      "unit": "mg/dL",
+      "flag": "high"
+    },
+    {
+      "type": "lab",
+      "test": "Triglycerides",
+      "value": "195",
+      "unit": "mg/dL",
+      "flag": "high"
+    },
+    {
+      "type": "lab",
+      "test": "HDL Cholesterol",
+      "value": "38",
+      "unit": "mg/dL",
+      "flag": "low"
+    },
+    {
+      "type": "lab",
+      "test": "LDL Cholesterol",
+      "value": "168",
+      "unit": "mg/dL",
+      "flag": "high"
+    }
+  ],
+  "must_not_contain": [
+    "Creatinine",
+    "Bilirubin"
+  ],
+  "allergy_status": "not_documented"
+}

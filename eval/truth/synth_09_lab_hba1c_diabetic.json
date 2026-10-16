@@ -1,0 +1,24 @@
+{
+  "doc_type": "lab_report",
+  "facts": [
+    {
+      "type": "lab",
+      "test": "HbA1c",
+      "value": "8.4",
+      "unit": "%",
+      "flag": "high"
+    },
+    {
+      "type": "lab",
+      "test": "Fasting Plasma Glucose",
+      "value": "162",
+      "unit": "mg/dL",
+      "flag": "high"
+    }
+  ],
+  "must_not_contain": [
+    "Thyroid",
+    "Troponin"
+  ],
+  "allergy_status": "not_documented"
+}

@@ -1,0 +1,31 @@
+{
+  "doc_type": "lab_report",
+  "facts": [
+    {
+      "type": "lab",
+      "test": "Total Bilirubin",
+      "value": "1.8",
+      "unit": "mg/dL",
+      "flag": "high"
+    },
+    {
+      "type": "lab",
+      "test": "SGOT",
+      "value": "64",
+      "unit": "U/L",
+      "flag": "high"
+    },
+    {
+      "type": "lab",
+      "test": "SGPT",
+      "value": "72",
+      "unit": "U/L",
+      "flag": "high"
+    }
+  ],
+  "must_not_contain": [
+    "Creatinine",
+    "Troponin"
+  ],
+  "allergy_status": "not_documented"
+}

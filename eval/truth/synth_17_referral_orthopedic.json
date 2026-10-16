@@ -1,0 +1,25 @@
+{
+  "doc_type": "doctor_note",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "Osteoarthritis Right Knee"
+    },
+    {
+      "type": "medication",
+      "name": "Paracetamol",
+      "dose": "650 mg",
+      "frequency": "SOS"
+    },
+    {
+      "type": "medication",
+      "name": "Calcium",
+      "dose": "500 mg",
+      "frequency": "OD"
+    }
+  ],
+  "must_not_contain": [
+    "Methotrexate"
+  ],
+  "allergy_status": "not_documented"
+}

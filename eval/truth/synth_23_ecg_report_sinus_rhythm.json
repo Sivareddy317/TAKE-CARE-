@@ -1,0 +1,15 @@
+{
+  "doc_type": "ecg_report",
+  "facts": [
+    {
+      "type": "vital",
+      "name": "Heart Rate",
+      "value": "72 bpm"
+    }
+  ],
+  "must_not_contain": [
+    "ST Elevation",
+    "Atrial Fibrillation"
+  ],
+  "allergy_status": "not_documented"
+}

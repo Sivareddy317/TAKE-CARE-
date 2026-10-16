@@ -1,0 +1,324 @@
+{
+  "evaluatedAt": "2026-10-16T06:05:50.232Z",
+  "dataset": {
+    "syntheticDocsCount": 30,
+    "edgeCasesCount": 10,
+    "realDocsCount": 0,
+    "totalCount": 40
+  },
+  "onlineMetrics": {
+    "pipelineMode": "Online Multimodal Pipeline (Gemini Vision + Express OCR)",
+    "totalDocuments": 40,
+    "classificationAccuracy": "90.0%",
+    "classificationCounts": {
+      "total": 40,
+      "correct": 36
+    },
+    "confusionMatrix": {
+      "imaging_image_no_text": {
+        "other_medical": 1,
+        "imaging_image_no_text": 4
+      },
+      "not_medical": {
+        "uncertain": 1
+      },
+      "prescription": {
+        "prescription": 8
+      },
+      "doctor_note": {
+        "prescription": 2,
+        "uncertain": 1,
+        "doctor_note": 2
+      },
+      "unreadable": {
+        "unreadable": 1
+      },
+      "lab_report": {
+        "lab_report": 6
+      },
+      "discharge_summary": {
+        "discharge_summary": 4
+      },
+      "vaccination_record": {
+        "vaccination_record": 2
+      },
+      "insurance_or_bill": {
+        "insurance_or_bill": 1,
+        "uncertain": 1
+      },
+      "ecg_report": {
+        "ecg_report": 2
+      },
+      "imaging_report": {
+        "imaging_report": 2
+      },
+      "pathology_report": {
+        "pathology_report": 1
+      },
+      "ophthalmology_report": {
+        "ophthalmology_report": 1
+      }
+    },
+    "overallMetrics": {
+      "tp": 36,
+      "fp": 12,
+      "fn": 44,
+      "precision": "75.0%",
+      "recall": "45.0%",
+      "f1": "56.3%"
+    },
+    "perTypeMetrics": {
+      "medication": {
+        "tp": 26,
+        "fp": 1,
+        "fn": 2,
+        "precision": "96.3%",
+        "recall": "92.9%",
+        "f1": "94.5%"
+      },
+      "lab": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 18,
+        "precision": "0.0%",
+        "recall": "0.0%",
+        "f1": "0.0%"
+      },
+      "condition": {
+        "tp": 5,
+        "fp": 0,
+        "fn": 15,
+        "precision": "100.0%",
+        "recall": "25.0%",
+        "f1": "40.0%"
+      },
+      "vital": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 2,
+        "precision": "0.0%",
+        "recall": "0.0%",
+        "f1": "0.0%"
+      },
+      "procedure": {
+        "tp": 3,
+        "fp": 3,
+        "fn": 2,
+        "precision": "50.0%",
+        "recall": "60.0%",
+        "f1": "54.5%"
+      },
+      "allergy": {
+        "tp": 2,
+        "fp": 7,
+        "fn": 0,
+        "precision": "22.2%",
+        "recall": "100.0%",
+        "f1": "36.4%"
+      },
+      "vaccine": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 5,
+        "precision": "0.0%",
+        "recall": "0.0%",
+        "f1": "0.0%"
+      },
+      "imaging_finding": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": "0.0%",
+        "recall": "0.0%",
+        "f1": "0.0%"
+      }
+    },
+    "trustMetrics": {
+      "totalExtractedFacts": 48,
+      "hallucinationRate": "0.0%",
+      "evidenceValidityRate": "100.0%",
+      "sourceMatchingRate": "100.0%",
+      "wrongItemsShownAsClear": 12
+    },
+    "safetyMetrics": {
+      "imagingOrNonMedicalWithExtractedFacts": 0,
+      "allergyStatusMismatches": 0,
+      "prescribedShownAsCurrentlyTaking": 0,
+      "promptInjectionFailures": 0,
+      "factsWithoutSourceLink": 0
+    },
+    "reviewEffectiveness": {
+      "wrongFactsCount": 12,
+      "wrongFactsFlagged": 0,
+      "totalFlaggedFacts": 0,
+      "errorCatchRate": "0.0%",
+      "flagPrecision": "100.0%"
+    },
+    "performance": {
+      "p50LatencyMs": 15,
+      "p95LatencyMs": 9584,
+      "maxLatencyMs": 9924,
+      "estimatedTokensPerDoc": 1420,
+      "estimatedCostPerDocUSD": "$0.00018",
+      "pricingReference": "Google AI Studio Gemini 3.5 Flash: $0.075 / 1M input tokens, $0.30 / 1M output tokens (Oct 2026 published)"
+    },
+    "topFailures": []
+  },
+  "offlineMetrics": {
+    "pipelineMode": "On-Device Offline Fallback Pipeline",
+    "totalDocuments": 40,
+    "classificationAccuracy": "92.5%",
+    "classificationCounts": {
+      "total": 40,
+      "correct": 37
+    },
+    "confusionMatrix": {
+      "imaging_image_no_text": {
+        "imaging_image_no_text": 5
+      },
+      "not_medical": {
+        "uncertain": 1
+      },
+      "prescription": {
+        "prescription": 8
+      },
+      "doctor_note": {
+        "prescription": 2,
+        "uncertain": 1,
+        "doctor_note": 2
+      },
+      "unreadable": {
+        "unreadable": 1
+      },
+      "lab_report": {
+        "lab_report": 6
+      },
+      "discharge_summary": {
+        "discharge_summary": 4
+      },
+      "vaccination_record": {
+        "vaccination_record": 2
+      },
+      "insurance_or_bill": {
+        "insurance_or_bill": 1,
+        "uncertain": 1
+      },
+      "ecg_report": {
+        "ecg_report": 2
+      },
+      "imaging_report": {
+        "imaging_report": 2
+      },
+      "pathology_report": {
+        "pathology_report": 1
+      },
+      "ophthalmology_report": {
+        "ophthalmology_report": 1
+      }
+    },
+    "overallMetrics": {
+      "tp": 36,
+      "fp": 12,
+      "fn": 44,
+      "precision": "75.0%",
+      "recall": "45.0%",
+      "f1": "56.3%"
+    },
+    "perTypeMetrics": {
+      "medication": {
+        "tp": 26,
+        "fp": 1,
+        "fn": 2,
+        "precision": "96.3%",
+        "recall": "92.9%",
+        "f1": "94.5%"
+      },
+      "lab": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 18,
+        "precision": "0.0%",
+        "recall": "0.0%",
+        "f1": "0.0%"
+      },
+      "condition": {
+        "tp": 5,
+        "fp": 0,
+        "fn": 15,
+        "precision": "100.0%",
+        "recall": "25.0%",
+        "f1": "40.0%"
+      },
+      "vital": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 2,
+        "precision": "0.0%",
+        "recall": "0.0%",
+        "f1": "0.0%"
+      },
+      "procedure": {
+        "tp": 3,
+        "fp": 3,
+        "fn": 2,
+        "precision": "50.0%",
+        "recall": "60.0%",
+        "f1": "54.5%"
+      },
+      "allergy": {
+        "tp": 2,
+        "fp": 7,
+        "fn": 0,
+        "precision": "22.2%",
+        "recall": "100.0%",
+        "f1": "36.4%"
+      },
+      "vaccine": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 5,
+        "precision": "0.0%",
+        "recall": "0.0%",
+        "f1": "0.0%"
+      },
+      "imaging_finding": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": "0.0%",
+        "recall": "0.0%",
+        "f1": "0.0%"
+      }
+    },
+    "trustMetrics": {
+      "totalExtractedFacts": 48,
+      "hallucinationRate": "0.0%",
+      "evidenceValidityRate": "100.0%",
+      "sourceMatchingRate": "100.0%",
+      "wrongItemsShownAsClear": 12
+    },
+    "safetyMetrics": {
+      "imagingOrNonMedicalWithExtractedFacts": 0,
+      "allergyStatusMismatches": 0,
+      "prescribedShownAsCurrentlyTaking": 0,
+      "promptInjectionFailures": 0,
+      "factsWithoutSourceLink": 0
+    },
+    "reviewEffectiveness": {
+      "wrongFactsCount": 12,
+      "wrongFactsFlagged": 0,
+      "totalFlaggedFacts": 0,
+      "errorCatchRate": "0.0%",
+      "flagPrecision": "100.0%"
+    },
+    "performance": {
+      "p50LatencyMs": 1,
+      "p95LatencyMs": 8,
+      "maxLatencyMs": 15,
+      "estimatedTokensPerDoc": 0,
+      "estimatedCostPerDocUSD": "$0.00000",
+      "pricingReference": "Google AI Studio Gemini 3.5 Flash: $0.075 / 1M input tokens, $0.30 / 1M output tokens (Oct 2026 published)"
+    },
+    "topFailures": []
+  }
+}

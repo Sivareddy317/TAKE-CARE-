@@ -1,0 +1,10 @@
+{
+  "doc_type": "unreadable",
+  "facts": [],
+  "must_not_contain": [
+    "Aspirin",
+    "Metformin",
+    "Normal"
+  ],
+  "allergy_status": "not_documented"
+}

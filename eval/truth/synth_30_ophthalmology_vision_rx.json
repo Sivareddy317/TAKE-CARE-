@@ -1,0 +1,14 @@
+{
+  "doc_type": "ophthalmology_report",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "Myopic Astigmatism"
+    }
+  ],
+  "must_not_contain": [
+    "Glaucoma",
+    "Cataract"
+  ],
+  "allergy_status": "not_documented"
+}

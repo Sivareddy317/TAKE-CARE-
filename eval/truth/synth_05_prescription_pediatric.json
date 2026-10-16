@@ -1,0 +1,26 @@
+{
+  "doc_type": "prescription",
+  "facts": [
+    {
+      "type": "medication",
+      "name": "Paracetamol",
+      "dose": "250 mg",
+      "frequency": "SOS"
+    },
+    {
+      "type": "medication",
+      "name": "Levocetirizine",
+      "dose": "2.5 mg",
+      "frequency": "bedtime"
+    },
+    {
+      "type": "condition",
+      "name": "Viral Upper Respiratory Tract Infection"
+    }
+  ],
+  "must_not_contain": [
+    "Aspirin",
+    "Ibuprofen"
+  ],
+  "allergy_status": "none_known"
+}

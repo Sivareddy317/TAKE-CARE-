@@ -1,0 +1,16 @@
+=== ACCESS CONTROL AND PRIVACY TEST RESULTS ===
+Total tests: 4
+Passed: 4
+Failed: 0
+
+[PASS] User A cannot read or delete User B records (Cross-user data isolation)
+  -> Evidence: User B document list leaked Doc A: false. Delete attempt status: 404 (Expected 404)
+
+[PASS] Doctor code: Wrong code lockout, scope restriction, immediate revocation
+  -> Evidence: Code generated: 675270. Doctor token issued: true. Immediate revoke status: 401 (Expected 401/403). Scope enforced: true. Lockout active: true
+
+[PASS] Logout purges authentication tokens and invalidates session
+  -> Evidence: Logout endpoint responded HTTP 200 with success: true. Client localStorage clear verified in client test suite.
+
+[PASS] Offline synchronization queue idempotency and duplicate prevention
+  -> Evidence: Enqueued 2 identical actions. Idempotency key returned: sync_1792131080941_mlkm7. Deduped matches: true. Queue prevents duplicates: true.

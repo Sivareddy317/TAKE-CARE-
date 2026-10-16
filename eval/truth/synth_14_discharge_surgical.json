@@ -1,0 +1,23 @@
+{
+  "doc_type": "discharge_summary",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "Acute Calculous Cholecystitis"
+    },
+    {
+      "type": "procedure",
+      "name": "Laparoscopic Cholecystectomy"
+    },
+    {
+      "type": "medication",
+      "name": "Cefuroxime",
+      "dose": "500 mg",
+      "frequency": "1-0-1"
+    }
+  ],
+  "must_not_contain": [
+    "Penicillin"
+  ],
+  "allergy_status": "none_known"
+}

@@ -1,0 +1,19 @@
+{
+  "doc_type": "ecg_report",
+  "facts": [
+    {
+      "type": "vital",
+      "name": "Heart Rate",
+      "value": "138 bpm",
+      "flag": "high"
+    },
+    {
+      "type": "condition",
+      "name": "Sinus Tachycardia"
+    }
+  ],
+  "must_not_contain": [
+    "Myocardial Infarction"
+  ],
+  "allergy_status": "not_documented"
+}

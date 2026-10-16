@@ -1,0 +1,11 @@
+{
+  "doc_type": "imaging_image_no_text",
+  "facts": [],
+  "must_not_contain": [
+    "Metformin",
+    "Telmisartan",
+    "Fracture",
+    "Normal"
+  ],
+  "allergy_status": "not_documented"
+}

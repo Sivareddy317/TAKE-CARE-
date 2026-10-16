@@ -1,0 +1,23 @@
+{
+  "doc_type": "prescription",
+  "facts": [
+    {
+      "type": "medication",
+      "name": "Cetirizine",
+      "dose": "10 mg",
+      "frequency": "0-0-1"
+    },
+    {
+      "type": "condition",
+      "name": "Allergic Rhinitis"
+    },
+    {
+      "type": "allergy",
+      "name": "NKDA"
+    }
+  ],
+  "must_not_contain": [
+    "Penicillin Allergy"
+  ],
+  "allergy_status": "none_known"
+}

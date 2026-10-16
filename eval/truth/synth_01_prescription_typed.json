@@ -1,0 +1,31 @@
+{
+  "doc_type": "prescription",
+  "facts": [
+    {
+      "type": "medication",
+      "name": "Telmisartan",
+      "dose": "40 mg",
+      "frequency": "1-0-0"
+    },
+    {
+      "type": "medication",
+      "name": "Amlodipine",
+      "dose": "5 mg",
+      "frequency": "0-0-1"
+    },
+    {
+      "type": "condition",
+      "name": "Essential Hypertension"
+    },
+    {
+      "type": "allergy",
+      "name": "NKDA"
+    }
+  ],
+  "must_not_contain": [
+    "Metformin",
+    "Penicillin",
+    "Insulin"
+  ],
+  "allergy_status": "none_known"
+}

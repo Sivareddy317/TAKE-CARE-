@@ -1,0 +1,31 @@
+{
+  "doc_type": "discharge_summary",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "NSTEMI"
+    },
+    {
+      "type": "medication",
+      "name": "Ticagrelor",
+      "dose": "90 mg",
+      "frequency": "1-0-1"
+    },
+    {
+      "type": "medication",
+      "name": "Aspirin",
+      "dose": "75 mg",
+      "frequency": "0-1-0"
+    },
+    {
+      "type": "medication",
+      "name": "Rosuvastatin",
+      "dose": "40 mg",
+      "frequency": "0-0-1"
+    }
+  ],
+  "must_not_contain": [
+    "Warfarin"
+  ],
+  "allergy_status": "none_known"
+}

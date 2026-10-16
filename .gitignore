@@ -17,3 +17,5 @@ android/app/build/
 android/build/
 android/.idea/
 android/local.properties
+eval/private/
+test-results/

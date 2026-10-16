@@ -1,0 +1,9 @@
+{
+  "doc_type": "insurance_or_bill",
+  "facts": [],
+  "must_not_contain": [
+    "Metformin",
+    "Hypertension"
+  ],
+  "allergy_status": "not_documented"
+}

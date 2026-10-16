@@ -1,0 +1,32 @@
+{
+  "doc_type": "prescription",
+  "facts": [
+    {
+      "type": "medication",
+      "name": "Azithromycin",
+      "dose": "500 mg",
+      "frequency": "OD"
+    },
+    {
+      "type": "medication",
+      "name": "Ascoril-D",
+      "dose": "10 ml",
+      "frequency": "TDS"
+    },
+    {
+      "type": "medication",
+      "name": "Paracetamol",
+      "dose": "650 mg",
+      "frequency": "SOS"
+    },
+    {
+      "type": "condition",
+      "name": "Acute Bronchitis"
+    }
+  ],
+  "must_not_contain": [
+    "Ciprofloxacin",
+    "Steroid"
+  ],
+  "allergy_status": "none_known"
+}

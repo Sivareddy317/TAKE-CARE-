@@ -1,0 +1,22 @@
+{
+  "doc_type": "doctor_note",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "Malaria"
+    },
+    {
+      "type": "procedure",
+      "name": "Dr. Krishna Shah"
+    },
+    {
+      "type": "procedure",
+      "name": "Kailash Hospital & Neuro Institute"
+    }
+  ],
+  "must_not_contain": [
+    "Metformin",
+    "Surgery"
+  ],
+  "allergy_status": "not_documented"
+}

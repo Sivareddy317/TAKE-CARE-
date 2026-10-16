@@ -1,0 +1,20 @@
+{
+  "doc_type": "doctor_note",
+  "facts": [
+    {
+      "type": "condition",
+      "name": "Acute Febrile Illness"
+    },
+    {
+      "type": "medication",
+      "name": "Paracetamol",
+      "dose": "650 mg",
+      "frequency": "TDS"
+    }
+  ],
+  "must_not_contain": [
+    "Antibiotic",
+    "Doxycycline"
+  ],
+  "allergy_status": "not_documented"
+}

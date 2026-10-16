@@ -1,0 +1,25 @@
+{
+  "doc_type": "prescription",
+  "facts": [
+    {
+      "type": "medication",
+      "name": "Pantoprazole",
+      "dose": "40 mg",
+      "frequency": "1-0-0"
+    },
+    {
+      "type": "medication",
+      "name": "Domperidone",
+      "dose": "10 mg",
+      "frequency": "1-0-0"
+    },
+    {
+      "type": "condition",
+      "name": "GERD"
+    }
+  ],
+  "must_not_contain": [
+    "Ranitidine"
+  ],
+  "allergy_status": "not_documented"
+}

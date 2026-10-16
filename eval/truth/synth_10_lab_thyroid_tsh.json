@@ -1,0 +1,29 @@
+{
+  "doc_type": "lab_report",
+  "facts": [
+    {
+      "type": "lab",
+      "test": "TSH",
+      "value": "6.8",
+      "unit": "uIU/mL",
+      "flag": "high"
+    },
+    {
+      "type": "lab",
+      "test": "Total T3",
+      "value": "1.1",
+      "unit": "ng/mL"
+    },
+    {
+      "type": "lab",
+      "test": "Total T4",
+      "value": "7.5",
+      "unit": "ug/dL"
+    }
+  ],
+  "must_not_contain": [
+    "Lipid",
+    "Uric Acid"
+  ],
+  "allergy_status": "not_documented"
+}
